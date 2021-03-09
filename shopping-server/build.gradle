@@ -1,0 +1,35 @@
+apply plugin: "java"
+apply plugin: 'application'
+mainClassName = "org.gamboni.shopping.server.ShoppingServer"
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+tasks.withType(JavaCompile) {
+    options.annotationProcessorGeneratedSourcesDirectory = file("src/generated/java")
+}
+
+sourceSets {
+    generated {
+        java {
+            srcDirs = ['src/generated/java']
+        }
+    }
+}
+
+dependencies {
+
+// source: https://stackoverflow.com/questions/54218556/how-to-generate-jpa-metamodel-with-gradle-5-x
+    annotationProcessor('org.hibernate:hibernate-jpamodelgen:5.4.29.Final')
+
+//    implementation project(':shopping-shared')
+
+    implementation 'com.google.guava:guava:24.1-jre'
+    implementation 'com.sparkjava:spark-core:2.6.0'
+    implementation 'org.hibernate:hibernate-core:5.4.29.Final'
+    implementation 'org.hibernate:hibernate-c3p0:5.4.29.Final'
+    implementation 'org.hibernate:hibernate-java8:5.4.29.Final'
+    implementation 'org.hibernate:hibernate-entitymanager:5.4.29.Final'
+    implementation 'mysql:mysql-connector-java:8.0.23'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.12.2'
+}
