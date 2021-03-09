@@ -21,8 +21,7 @@ public interface HttpRequest {
         private final HttpMethod method;
         private final AbstractScript.JsExpression url;
         private final String body;
-
-        private Map<String, AbstractScript.JsExpression> headers;
+        private final Map<String, AbstractScript.JsExpression> headers = new HashMap<>();
 
         public Impl(HttpMethod method, AbstractScript.JsExpression url, String body) {
             this.method = method;

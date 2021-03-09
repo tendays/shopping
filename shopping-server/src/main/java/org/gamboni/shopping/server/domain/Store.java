@@ -4,7 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.mysql.cj.jdbc.MysqlDataSource;
+import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
 
 import org.gamboni.shopping.server.domain.Item;
 import org.gamboni.shopping.server.domain.Item_;
@@ -137,21 +137,24 @@ public class Store {
 
     protected EntityManagerFactory startHibernate() {
         MysqlDataSource dataSource = new MysqlDataSource();
-        try {
+        //try {
             dataSource.setUrl("jdbc:mysql://localhost:3306/shopping");
             dataSource.setUser("shopping");
             dataSource.setPassword("shopping");
             dataSource.setCharacterEncoding("utf8");
-            //dataSource.setUseUnicode(true);
+            dataSource.setUseUnicode(true);
             dataSource.setConnectionCollation("utf8mb4_general_ci"); //utf8"); // maybe add COLLATE utf8mb4_general_ci?
-        } catch (SQLException e) {
+        /*} catch (SQLException e) {
             throw new RuntimeException(e);
-        }
+        }*/
 
         Properties prop = new Properties();
-        prop.setProperty(AvailableSettings.JPA_JDBC_URL/*AvailableSettings.URL*/, "jdbc:mysql://localhost:3306/shopping");
-        prop.setProperty(AvailableSettings.JPA_JDBC_USER, "shopping");
+/*        prop.setProperty(AvailableSettings.JPA_JDBC_URL, dataSource.getUrl());
+        prop.setProperty(AvailableSettings.JPA_JDBC_USER, dataSource.getUser());
         prop.setProperty(AvailableSettings.JPA_JDBC_PASSWORD, "shopping");
+  */      prop.setProperty(AvailableSettings.URL, dataSource.getUrl());
+        prop.setProperty(AvailableSettings.USER, dataSource.getUser());
+        prop.setProperty(AvailableSettings.PASS, "shopping");
         prop.setProperty(AvailableSettings.HBM2DDL_AUTO, "update");
         prop.setProperty(AvailableSettings.SHOW_SQL, "true");
         prop.setProperty(AvailableSettings.DIALECT, MySQLDialect.class.getName());
