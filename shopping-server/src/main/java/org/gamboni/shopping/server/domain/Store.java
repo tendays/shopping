@@ -17,6 +17,7 @@ import org.hibernate.jpa.boot.internal.PersistenceUnitInfoDescriptor;
 import org.hibernate.tool.schema.Action;
 
 import java.net.URL;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
@@ -149,12 +150,14 @@ public class Store {
         }*/
 
         Properties prop = new Properties();
-/*        prop.setProperty(AvailableSettings.JPA_JDBC_URL, dataSource.getUrl());
+        prop.setProperty(AvailableSettings.JPA_JDBC_URL, dataSource.getUrl());
         prop.setProperty(AvailableSettings.JPA_JDBC_USER, dataSource.getUser());
         prop.setProperty(AvailableSettings.JPA_JDBC_PASSWORD, "shopping");
-  */      prop.setProperty(AvailableSettings.URL, dataSource.getUrl());
+
+        prop.setProperty(AvailableSettings.URL, dataSource.getUrl());
         prop.setProperty(AvailableSettings.USER, dataSource.getUser());
         prop.setProperty(AvailableSettings.PASS, "shopping");
+
         prop.setProperty(AvailableSettings.HBM2DDL_AUTO, "update");
         prop.setProperty(AvailableSettings.SHOW_SQL, "true");
         prop.setProperty(AvailableSettings.DIALECT, MySQLDialect.class.getName());
@@ -166,6 +169,12 @@ public class Store {
         prop.setProperty(AvailableSettings.C3P0_TIMEOUT, "1800");
         prop.setProperty(AvailableSettings.C3P0_MAX_STATEMENTS, "50");
         prop.setProperty(AvailableSettings.CONNECTION_PROVIDER, C3P0ConnectionProvider.class.getName());
+
+        try {
+            DriverManager.getConnection(dataSource.getUrl(), "shopping", "shopping");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
 
         PersistenceUnitInfo pui = new PersistenceUnitInfo() {
             @Override
@@ -260,7 +269,7 @@ public class Store {
 
         new HibernatePersistenceProvider().createContainerEntityManagerFactory(pui, prop);
 
-        ImmutableMap<Object, Object> configuration = ImmutableMap.of(); // ?
+        ImmutableMap<Object, Object> configuration = ImmutableMap.of(AvailableSettings.URL, dataSource.getUrl()); // ?
         return new EntityManagerFactoryBuilderImpl(new PersistenceUnitInfoDescriptor(pui), configuration).build();
 
     }

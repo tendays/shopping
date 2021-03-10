@@ -66,6 +66,7 @@ public abstract class AbstractScript implements Resource {
     }
 
     protected static class JsHtmlElement extends JsExpression {
+        public JsHtmlElement(String code) { super(code); } // needed to work with let()
         public JsHtmlElement(JsExpression code) {
             super(code.code);
         }
