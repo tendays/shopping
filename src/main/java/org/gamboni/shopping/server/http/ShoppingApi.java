@@ -19,5 +19,5 @@ public class ShoppingApi {
             ACTION = new ApiMethod.WithSplat<>(HttpMethod.POST, Format.STRING, "/l/", "")
             .withHeader(Format.ofEnum(Action.class), "X-Shopping-Action");
 
-    public static final ApiMethod.WithParam<Long> WATCH = new ApiMethod.WithParam<>(HttpMethod.GET, Format.LONG, "/a/", "");
+    public static final String SOCKET_URL = "/sock";
 }

@@ -5,11 +5,10 @@
 ## Build
 
 ```shell
-cd shopping-quarkus
 ./gradlew build --native
 ```
 
-The executable gets saved to `shopping-quarkus/build/shopping-quarkus-1.0.0-SNAPSHOT-runner`.
+The executable gets saved to `build/shopping-quarkus-1.0.0-SNAPSHOT-runner`.
 
 ## Setup
 

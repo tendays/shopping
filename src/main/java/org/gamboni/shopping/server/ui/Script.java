@@ -48,19 +48,23 @@ public class Script extends AbstractScript {
                                         e.classList().remove(e.classList().item(0)),
                                         e.classList().add(state.dot("state.toLowerCase()")) // TODO toLowerCase repeats work done by style.forState
                                 )))) +
-                function(poll, sequence -> ShoppingApi.WATCH.invoke().param(sequence).subscribe(json ->
-                        let(new JsExpression("JSON.parse("+ json +")"),
+                function(poll, sequence ->
+                        let(new JsExpression("new WebSocket(((window.location.protocol === 'https:') ? 'wss://' : 'ws://') +" +
+                                        " window.location.host + " +
+                                        literal(ShoppingApi.SOCKET_URL) +")"),
                                 JsExpression::new,
-                                result ->
+                                socket ->
                                 new JsStatement() {
                                     @Override
                                     public String toString() {
-                                        return result.dot("batch") + ".forEach(item => "+
-                                                setState +"(item));" +
-                                                poll +"(" + result + ".continuation);";
+                                        return socket.dot("onopen") + " = () => "+
+                                                socket.dot("send(" + sequence +");") +
+                                                socket.dot("onmessage") + " = (event) => " +
+                                                setState +"(JSON.parse(event.data));" +
+                                                socket.dot("onerror") + " = (event) => console.log(event);";
                                     }
                                 }
-                        )));
+                        ));
     }
 
     private JsStatement doAction(JsHtmlElement elt, Action action) {

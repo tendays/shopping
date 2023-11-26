@@ -1,5 +1,6 @@
 package org.gamboni.shopping.server;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
@@ -8,6 +9,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.StreamingOutput;
+import lombok.extern.slf4j.Slf4j;
 import org.gamboni.shopping.server.domain.*;
 import org.gamboni.shopping.server.tech.http.BadRequestException;
 import org.gamboni.shopping.server.ui.Script;
@@ -28,13 +30,16 @@ import java.util.function.Consumer;
  * @author tendays
  */
 @Path("/")
+@Slf4j
 public class ShoppingServer {
     @Inject
     Store s;
-    public static final int PORT = 4570;
+
+    @Inject
+    ShoppingSocket socket;
+
     private static final File IMAGE_PATH = new File("images");
 
-    final List<Consumer<Item>> watchers = new ArrayList<>();
 
     /*        Spark.exception(BadRequestException.class, (t, req, res) -> {
                 t.printStackTrace();
@@ -94,7 +99,12 @@ public class ShoppingServer {
             throw new EntityNotFoundException();
         }
         return out -> {
-            try (InputStream in = new FileInputStream(new File(IMAGE_PATH, pp.get().getFile()))) {
+            File file = new File(IMAGE_PATH, pp.get().getFile());
+            if (!file.exists()) {
+                log.error("file {} does not exist", file.getAbsolutePath());
+                return;
+            }
+            try (InputStream in = new FileInputStream(file)) {
                 ByteStreams.copy(in, out);
             }
         };
@@ -117,7 +127,7 @@ public class ShoppingServer {
     @POST
     @Path("/l/{name}")
     @Transactional
-    public String action(@PathParam("name") String name, @HeaderParam("X-Shopping-Action") Action action) {
+    public String action(@PathParam("name") String name, @HeaderParam("X-Shopping-Action") Action action) throws JsonProcessingException {
         if (name.isEmpty()) {
             throw new BadRequestException();
         }
@@ -126,44 +136,9 @@ public class ShoppingServer {
         if (action.from.contains(item.getState())) {
             item.setState(action.to);
             item.setSequence(s.nextSequence());
-            synchronized (watchers) {
-                System.out.println("Notifying " + watchers.size() + " watchers");
-                watchers.forEach(w -> w.accept(item));
-                watchers.clear();
-                watchers.notifyAll();
-            }
+            var is = new ItemState(item.getText(), action.to);
+            socket.broadcast(is);
         }
         return item.getState().name();
-    }
-
-    /**
-     * Get actions that occurred a given sequence value. If none occurred, wait a minute before returning
-     */
-    @GET
-    @Path("/a/{since}")
-    @Transactional
-    public WatchResult watch(@PathParam("since") long since) {
-        var cb = s.getEm().getCriteriaBuilder();
-        final List<Item> items = s.search(Item.class, (query, root) ->
-                        query.where(cb.gt(root.get(Item_.sequence), since)))
-                .getResultList();
-
-        if (items.isEmpty()) {
-            synchronized (watchers) {
-                watchers.add(items::add);
-
-                try {
-                    watchers.wait(60_000);
-                } catch (InterruptedException e) {
-                    /* Ok: return early. */
-                }
-            }
-        }
-
-        return new WatchResult(Lists.transform(items,
-                i -> new ItemState(i.getText(), i.getState())),
-                Items.nextSequence(items).orElse(since)
-        );
-
     }
 }
