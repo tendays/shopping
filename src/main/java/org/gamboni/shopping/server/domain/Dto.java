@@ -6,10 +6,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 /**
  * @author tendays
  */
-public class Dto {
-    protected static final ObjectMapper MAPPER = new ObjectMapper();
+public interface Dto {
+    ObjectMapper MAPPER = new ObjectMapper();
 
-    public String toString() {
+    default String toJsonString() {
         try {
             return MAPPER.writeValueAsString(this);
         } catch (JsonProcessingException e) {

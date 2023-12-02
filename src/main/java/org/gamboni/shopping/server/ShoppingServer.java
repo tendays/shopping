@@ -35,9 +35,6 @@ public class ShoppingServer {
     @Inject
     Store s;
 
-    @Inject
-    ShoppingSocket socket;
-
     private static final File IMAGE_PATH = new File("images");
 
 
@@ -134,10 +131,7 @@ public class ShoppingServer {
 
         final Item item = s.getItemByName(name);
         if (action.from.contains(item.getState())) {
-            item.setState(action.to);
-            item.setSequence(s.nextSequence());
-            var is = new ItemState(item.getText(), action.to);
-            socket.broadcast(is);
+            s.setItemState(item, action.to);
         }
         return item.getState().name();
     }

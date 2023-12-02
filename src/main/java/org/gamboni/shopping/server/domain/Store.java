@@ -1,11 +1,14 @@
 package org.gamboni.shopping.server.domain;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableList;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Root;
 import jakarta.transaction.Transactional;
+import org.gamboni.shopping.server.ShoppingSocket;
 import org.gamboni.shopping.server.tech.data.AbstractStore;
 
 import java.util.List;
@@ -19,6 +22,9 @@ import java.util.function.BiConsumer;
  */
 @ApplicationScoped
 public class Store extends AbstractStore {
+
+    @Inject
+    ShoppingSocket socket;
 
     public long nextSequence() {
         return ((Number) em.createNativeQuery("select next value for versions").getSingleResult())
@@ -48,7 +54,7 @@ public class Store extends AbstractStore {
     }
 
 
-    private TypedQuery<Item> searchItems(BiConsumer<CriteriaQuery<Item>, Root<Item>> criteria) {
+    public TypedQuery<Item> searchItems(BiConsumer<CriteriaQuery<Item>, Root<Item>> criteria) {
         return search(Item.class, criteria);
     }
 
@@ -66,5 +72,12 @@ public class Store extends AbstractStore {
         return search(Item.class, (query, root) ->
                         query.where(cb.gt(root.get(Item_.sequence), since)))
                 .getResultList();
+    }
+
+    public void setItemState(Item item, State newState) {
+        item.setState(newState);
+        item.setSequence(nextSequence());
+        var is = ItemState.forItem(item);
+        socket.broadcast(is);
     }
 }

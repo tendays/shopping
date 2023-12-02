@@ -20,7 +20,7 @@ public enum UiMode {
         @Override
         public List<Item> load(Store s) {
             var cb = s.getEm().getCriteriaBuilder();
-            return s.search(Item.class, (criteria, root) -> criteria.where(cb.notEqual(root.get(Item_.state), State.UNUSED))).getResultList();
+            return s.searchItems((criteria, root) -> criteria.where(cb.notEqual(root.get(Item_.state), State.UNUSED))).getResultList();
         }
     };
 

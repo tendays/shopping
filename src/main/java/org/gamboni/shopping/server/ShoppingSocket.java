@@ -70,8 +70,8 @@ public class ShoppingSocket {
         sessions.remove(session);
     }
 
-    public synchronized void broadcast(ItemState item) throws JsonProcessingException {
-        String itemText = json.writeValueAsString(item);
+    public synchronized void broadcast(ItemState item) {
+        String itemText = item.toJsonString();
         log.info("Notifying " + sessions.size() + " watchers");
         for (var s : sessions) {
             s.getAsyncRemote().sendText(itemText);
