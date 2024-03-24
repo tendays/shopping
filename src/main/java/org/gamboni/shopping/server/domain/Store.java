@@ -74,10 +74,9 @@ public class Store extends AbstractStore {
     }
 
     public void setItemState(Item item, State newState) {
-        State oldState = item.getState();
         item.setState(newState);
         item.setSequence(nextSequence());
-        socket.broadcast(oldState, item);
+        socket.broadcast(item);
     }
 
     @Transactional

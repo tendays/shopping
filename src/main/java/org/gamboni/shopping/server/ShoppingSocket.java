@@ -7,7 +7,10 @@ import jakarta.inject.Inject;
 import jakarta.websocket.*;
 import jakarta.websocket.server.ServerEndpoint;
 import lombok.extern.slf4j.Slf4j;
-import org.gamboni.shopping.server.domain.*;
+import org.gamboni.shopping.server.domain.Action;
+import org.gamboni.shopping.server.domain.Item;
+import org.gamboni.shopping.server.domain.ItemTransition;
+import org.gamboni.shopping.server.domain.Store;
 import org.gamboni.shopping.server.http.ShoppingApi;
 import org.gamboni.shopping.server.tech.Enums;
 import org.gamboni.shopping.server.ui.UiMode;
@@ -57,12 +60,7 @@ public class ShoppingSocket {
                             log.debug("Sending initial item {} to {}",
                                     item.getText(), session);
                             session.getAsyncRemote().sendText(
-                                    // TODO oldState isn't known (not necessarily UNUSED);
-                                    // so for visible items we don't know if it is UPDATE or CREATE!
-                                    // need to update front to look for item and create it if missing.
-                                    // AND if that logic is there then we can replace transition.TYPE
-                                    // with just VISIBLE/HIDDEN
-                                    ItemTransition.forItem(mode, State.UNUSED, item)
+                                    ItemTransition.forItem(mode, item)
                                             .toJsonString());
                         }
                         log.debug("Adding {} to broadcast list", session);
@@ -92,11 +90,11 @@ public class ShoppingSocket {
         sessions.remove(session);
     }
 
-    public synchronized void broadcast(State oldState, Item item) {
+    public synchronized void broadcast(Item item) {
         log.info("Notifying " + sessions.size() + " watchers");
         sessions.forEach((session, mode) -> {
             session.getAsyncRemote().sendText(
-                    ItemTransition.forItem(mode, oldState, item)
+                    ItemTransition.forItem(mode, item)
                             .toJsonString()
             );
         });

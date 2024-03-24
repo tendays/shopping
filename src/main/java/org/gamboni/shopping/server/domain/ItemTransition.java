@@ -10,27 +10,13 @@ import org.gamboni.shopping.server.ui.UiMode;
 public record ItemTransition(String id, Type type, State state, long sequence) implements Dto {
 
     public enum Type {
-        CREATE, UPDATE, REMOVE;
+        VISIBLE, HIDDEN;
 
-        static Type ofTransition(boolean before, boolean after) {
-            if (after && !before) {
-                return CREATE;
-            } else if (after && before) {
-                return UPDATE;
-            } else if (before && !after) {
-                return REMOVE;
-            } else { // !before && !after. We could make this return Optional to support that last case.
-                throw new IllegalStateException();
-            }
-        }
     }
 
-    public static ItemTransition forItem(UiMode mode, State oldState, Item item) {
+    public static ItemTransition forItem(UiMode mode, Item item) {
         return new ItemTransition(item.getText(),
-                Type.ofTransition(
-                        mode.test(oldState),
-                        mode.test(item.getState())
-                ),
+                mode.test(item.getState()) ? Type.VISIBLE : Type.HIDDEN,
                 item.getState(),
                 item.getSequence());
     }

@@ -123,6 +123,10 @@ public abstract class JavaScript {
             // TODO bracket (this) if needed. e.g. (x+y).toLowerCase() should produce brackets
             return s -> this.format(s) +".toLowerCase()";
         }
+
+        default JsExpression and(JsExpression rhs) {
+            return s -> this.format(s) + " && " + rhs.format(s);
+        }
     }
 
     public static class JsHtmlElement implements JsExpression {

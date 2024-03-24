@@ -100,12 +100,18 @@ public class Script extends AbstractScript {
                                                                 jsonParse(event.dot("data")),
                                                         JsExpression::of,
                                                         data ->
-                                                                _if(data.dot("type").eq(literal(ItemTransition.Type.REMOVE)),
-                                                                        getElementForState(data).remove())
-                                                                ._elseIf(data.dot("type").eq(literal(ItemTransition.Type.UPDATE)),
+                                                                let(getElementForState(data),
+                                                                JsHtmlElement::new,
+                                                                existing ->
+                                                                _if(data.dot("type").eq(literal(ItemTransition.Type.HIDDEN))
+                                                                                .and(existing),
+                                                                        existing.remove())
+                                                                ._elseIf(data.dot("type").eq(literal(ItemTransition.Type.VISIBLE))
+                                                                                .and(existing),
                                                         setState.invoke(data))
-                                                                        ._else(newElement.invoke(mode, data))
-                                                                                )))),
+                                                                        ._elseIf(data.dot("type").eq(literal(ItemTransition.Type.VISIBLE)),
+                                                                                newElement.invoke(mode, data))
+                                                                                ))))),
 
                                 let(/* close handler */
                                         lambda("event", event ->
