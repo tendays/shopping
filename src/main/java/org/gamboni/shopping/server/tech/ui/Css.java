@@ -4,21 +4,47 @@ import com.google.common.base.CaseFormat;
 import com.google.common.reflect.Reflection;
 
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static org.gamboni.shopping.server.tech.ui.Html.attribute;
 
 /**
  * @author tendays
  */
 public abstract class Css implements Resource {
+
+    public record EnumToClassName<T extends Enum<T>>(Class<T> enumType) {
+        // Maps.toMap(Arrays.asList(State.values()),
+        //            s -> new ClassName(s.name().toLowerCase()));
+        public Stream<ClassName> valueStream() {
+            return Stream.of(enumType.getEnumConstants())
+                    .map(this::get);
+        }
+
+        public ClassName get(T key) {
+            return new ClassName(key.name().toLowerCase());
+        }
+
+        public ClassName get(Value<T> key) {
+            if (key instanceof Value.Constant<T> cst) {
+                return get(cst.getConstantValue());
+            } else {
+                return new ClassName(Value.of(key.toExpression().toLowerCase()));
+            }
+        }
+    }
+
     public String getUrl() {
         return "/"+ CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_HYPHEN, getClass().getSimpleName().toLowerCase()) +".css";
     }
 
     @Override
     public Html asElement() {
-        return new Element("link", "rel='stylesheet' href=" + Html.quote(getUrl()));
+        return new Element("link", List.of(attribute("rel", "stylesheet"),
+                attribute("href", getUrl())));
     }
 
     protected String rule(Selector selector, Property... attributes) {
@@ -104,17 +130,21 @@ public abstract class Css implements Resource {
     }
 
     public static class ClassName implements Selector, Html.Attribute {
-        final String name;
+        final Value<String> name;
         public ClassName(String name) {
+            this.name = Value.of(name);
+        }
+        public ClassName(Value<String> name) {
             this.name = name;
         }
 
         public String renderSelector() {
-            return "."+ name;
+            return "."+ name.assertStatic();
         }
 
         public String toString() {
-            return this.name;
+            return this.name instanceof Value.Constant<String> cst ? cst.getConstantValue() :
+                    name.toExpression().toString();
         }
 
         @Override
@@ -123,7 +153,7 @@ public abstract class Css implements Resource {
         }
 
         @Override
-        public String getAttributeValue() {
+        public Value<String> getAttributeValue() {
             return name;
         }
     }

@@ -5,7 +5,7 @@
 ## Build
 
 ```shell
-./gradlew build --native
+quarkus build --native
 ```
 
 The executable gets saved to `build/shopping-quarkus-1.0.0-SNAPSHOT-runner`.
@@ -33,3 +33,7 @@ I recommend you deploy it somewhere you can access it from multiple locations! T
 * someone who stayed at home can add stuff to the shopping list while you shop. 
 * Many people in the household can open the `SELECT` page to select things they need.
 * Many people can open the `SHOP` page while they shop to optimise the shopping and make sure nothing is forgotten, nothing is taken twice!
+
+## Acknowledgement
+
+["Groceries" favicon created by justicon - Flaticon](https://www.flaticon.com/free-icons/groceries)

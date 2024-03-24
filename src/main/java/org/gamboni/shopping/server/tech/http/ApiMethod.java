@@ -1,7 +1,8 @@
 package org.gamboni.shopping.server.tech.http;
 
-import org.gamboni.shopping.server.tech.ui.AbstractScript;
 import org.gamboni.shopping.server.tech.ui.HttpRequest;
+import org.gamboni.shopping.server.tech.ui.JavaScript;
+import org.gamboni.shopping.server.tech.ui.JavaScript.JsExpression;
 
 import java.util.function.Function;
 
@@ -41,7 +42,7 @@ public interface ApiMethod<I, U, J extends HttpRequest> {
             public HttpRequest.Parametric<J> invoke() {
                 return new HttpRequest.Parametric<J>() {
                     @Override
-                    public J param(AbstractScript.JsExpression value) {
+                    public J param(JsExpression value) {
                         J baseInvocation = copyHeaders(base.invoke());
                         baseInvocation.setHeader(header, value);
                         return baseInvocation;
@@ -94,7 +95,7 @@ public interface ApiMethod<I, U, J extends HttpRequest> {
 
         protected abstract String getSparkUrl();
 
-        protected abstract AbstractScript.JsExpression getUrlExpression(AbstractScript.JsExpression parameterExpression);
+        protected abstract JsExpression getUrlExpression(JsExpression parameterExpression);
 
         @Override
         public Function<T, String> getUrl() {
@@ -105,7 +106,7 @@ public interface ApiMethod<I, U, J extends HttpRequest> {
         public HttpRequest.Parametric<HttpRequest.Impl> invoke() {
             return new HttpRequest.Parametric<HttpRequest.Impl>() {
                 @Override
-                public Impl param(AbstractScript.JsExpression value) {
+                public Impl param(JsExpression value) {
                     return copyHeaders(new HttpRequest.Impl(method, getUrlExpression(value), ""));
                 }
             };
@@ -164,8 +165,8 @@ public interface ApiMethod<I, U, J extends HttpRequest> {
         }
 
         @Override
-        protected AbstractScript.JsExpression getUrlExpression(AbstractScript.JsExpression parameterExpression) {
-            return AbstractScript.literal(before).plus(parameterExpression).plus(after);
+        protected JsExpression getUrlExpression(JsExpression parameterExpression) {
+            return JavaScript.literal(before).plus(parameterExpression).plus(after);
         }
 
         @Override
@@ -202,8 +203,8 @@ public interface ApiMethod<I, U, J extends HttpRequest> {
         }
 
         @Override
-        protected AbstractScript.JsExpression getUrlExpression(AbstractScript.JsExpression parameterExpression) {
-            return AbstractScript.literal(before).plus(parameterExpression).plus(after);
+        protected JsExpression getUrlExpression(JsExpression parameterExpression) {
+            return JavaScript.literal(before).plus(parameterExpression).plus(after);
         }
     }
 

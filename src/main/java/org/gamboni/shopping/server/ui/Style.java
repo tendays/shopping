@@ -1,24 +1,19 @@
 package org.gamboni.shopping.server.ui;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import org.gamboni.shopping.server.domain.State;
 import org.gamboni.shopping.server.tech.ui.Css;
-
-import java.util.Arrays;
 
 /**
  * @author tendays
  */
 public class Style extends Css {
-    public ImmutableMap<State, ClassName> forState = Maps.toMap(Arrays.asList(State.values()),
-            s -> new ClassName(s.name().toLowerCase()));
+    public EnumToClassName<State> forState = new EnumToClassName<>(State.class);
     public ClassName text = new ClassName("text");
     public ClassName image = new ClassName("image");
 
     public String render() {
         Properties a = Properties.INSTANCE;
-        return rule(forState.values().stream().reduce(Selector.NOTHING, Selector::or, Selector::or),
+        return rule(forState.valueStream().reduce(Selector.NOTHING, Selector::or, Selector::or),
                 a.width("300px"),
                 a.height("300px"),
                 a._float("left"),
@@ -40,10 +35,10 @@ public class Style extends Css {
                         a.backgroundColor("orange"),
                         a.color("white")) +
                 rule(forState.get(State.BOUGHT).before(),
-                        a.content("\"✅\""),
+                        a.content("\"✅\""), // note: "checkmark" emoji between quotes
                         a.position("absolute"),
                         a.right("0"),
                         a.top("0"),
-                        a.fontSize("3em")); // note: "checkmark" emoji between quotes
+                        a.fontSize("3em"));
     }
 }

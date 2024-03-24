@@ -2,24 +2,17 @@ package org.gamboni.shopping.server.tech.ui;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import org.gamboni.shopping.server.tech.ui.JavaScript.JsExpression;
 
 import java.util.List;
-import java.util.function.Function;
 
 /**
  * @author tendays
  */
-public class AbstractPage {
-    protected Html img(Css.ClassName style, String href) {
-        return new Tag("img class="+ Html.quote(style) +" src=" + Html.quote(href));
-    }
+public abstract class AbstractPage extends AbstractComponent {
 
-    protected Html img(String href) {
-        return new Tag("img src=" + Html.quote(href));
-    }
-
-    protected Element div(List<Html.Attribute> attributes, Html... content) {
-        return new Element("div", attributes, content);
+    protected AbstractPage() {
+        super(End.BACK); // pages are always rendered in the back end
     }
 
     protected HtmlElement html(Iterable<Resource> dependencies, Iterable<Element> body) {
@@ -40,16 +33,11 @@ public class AbstractPage {
             this.bodyAttributes = bodyAttributes;
         }
 
-        public HtmlElement onLoad(AbstractScript.JsExpression code) {
+        public HtmlElement onLoad(JsExpression code) {
             return new HtmlElement(dependencies, body, ImmutableList.<Attribute>builder()
             .addAll(bodyAttributes)
-            .add(Html.attribute("onload", code.toString()))
+            .add(Html.attribute("onload", code))
             .build());
         }
-    }
-
-    protected <T> Element ul(Iterable<T> list, Function<T, Html> renderer) {
-        return new Element("ul", Iterables.transform(list,
-                e -> new Element("li", renderer.apply(e))));
     }
 }

@@ -1,23 +1,20 @@
 package org.gamboni.shopping.server;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vertx.core.Vertx;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import jakarta.websocket.*;
 import jakarta.websocket.server.ServerEndpoint;
 import lombok.extern.slf4j.Slf4j;
-import org.gamboni.shopping.server.domain.Item;
-import org.gamboni.shopping.server.domain.ItemState;
-import org.gamboni.shopping.server.domain.Item_;
-import org.gamboni.shopping.server.domain.Store;
+import org.gamboni.shopping.server.domain.*;
 import org.gamboni.shopping.server.http.ShoppingApi;
+import org.gamboni.shopping.server.tech.Enums;
+import org.gamboni.shopping.server.ui.UiMode;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 @ServerEndpoint(ShoppingApi.SOCKET_URL)
 @ApplicationScoped
@@ -33,7 +30,7 @@ public class ShoppingSocket {
     @Inject
     ObjectMapper json;
 
-    List<Session> sessions = new ArrayList<>();
+    private final Map<Session, UiMode> sessions = new HashMap<>();
     @OnOpen
     public synchronized void onOpen(Session session) {
         log.debug("New session opened");
@@ -42,20 +39,45 @@ public class ShoppingSocket {
     @OnMessage
     public synchronized void onMessage(String message, Session session) throws IOException {
         log.info("Got message '{}' on {}", message, session);
-        Long since = Long.parseLong(message);
-        vertx.executeBlocking(() -> {
-            log.debug("Processing subscription since {}", since);
+        int space = message.indexOf(' ');
+        if (space == -1) {
+            log.error("Unknown message {}", message);
+            return;
+        }
+        String command = message.substring(0, space);
+        String param = message.substring(space + 1);
 
+        Enums.valueOf(UiMode.class, command)
+                .ifPresentOrElse(mode -> {
+                    long since = Long.parseLong(param);
+                    vertx.executeBlocking(() -> {
+                        log.debug("Processing subscription since {}", since);
 
-            for (Item item : s.getItemsSince(since)) {
-                log.debug("Sending initial item {} to {}",
-                        item.getText(), session);
-                session.getAsyncRemote().sendText(json.writeValueAsString(item));
-            }
-            log.debug("Adding {} to broadcast list", session);
-            sessions.add(session);
-            return null;
-        });
+                        for (Item item : s.getItemsSince(since)) {
+                            log.debug("Sending initial item {} to {}",
+                                    item.getText(), session);
+                            session.getAsyncRemote().sendText(
+                                    // TODO oldState isn't known (not necessarily UNUSED);
+                                    // so for visible items we don't know if it is UPDATE or CREATE!
+                                    // need to update front to look for item and create it if missing.
+                                    // AND if that logic is there then we can replace transition.TYPE
+                                    // with just VISIBLE/HIDDEN
+                                    ItemTransition.forItem(mode, State.UNUSED, item)
+                                            .toJsonString());
+                        }
+                        log.debug("Adding {} to broadcast list", session);
+                        sessions.put(session, mode);
+                        return null;
+                    });
+                }, () -> Enums.valueOf(Action.class, command)
+                        .ifPresentOrElse(action -> {
+                            if (param.isEmpty()) {
+                                log.error(action + " without name!");
+                                return;
+                            }
+
+                            vertx.executeBlocking(() -> s.setItemState(param, action));
+                        }, () -> log.error("unknown action " + command)));
     }
 
     @OnClose
@@ -70,11 +92,13 @@ public class ShoppingSocket {
         sessions.remove(session);
     }
 
-    public synchronized void broadcast(ItemState item) {
-        String itemText = item.toJsonString();
+    public synchronized void broadcast(State oldState, Item item) {
         log.info("Notifying " + sessions.size() + " watchers");
-        for (var s : sessions) {
-            s.getAsyncRemote().sendText(itemText);
-        }
+        sessions.forEach((session, mode) -> {
+            session.getAsyncRemote().sendText(
+                    ItemTransition.forItem(mode, oldState, item)
+                            .toJsonString()
+            );
+        });
     }
 }

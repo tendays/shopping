@@ -1,5 +1,7 @@
 package org.gamboni.shopping.server.tech.ui;
 
+import org.gamboni.shopping.server.tech.ui.JavaScript.JsExpression;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,15 +14,15 @@ import java.util.stream.Collectors;
  */
 public interface HttpRequest {
 
-    void setHeader(String header, AbstractScript.JsExpression value);
+    void setHeader(String header, JsExpression value);
 
     public static class Impl implements HttpRequest {
         private final String method;
-        private final AbstractScript.JsExpression url;
+        private final JsExpression url;
         private final String body;
-        private final Map<String, AbstractScript.JsExpression> headers = new HashMap<>();
+        private final Map<String, JsExpression> headers = new HashMap<>();
 
-        public Impl(String method, AbstractScript.JsExpression url, String body) {
+        public Impl(String method, JsExpression url, String body) {
             this.method = method;
             this.url = url;
             this.body = body;
@@ -32,21 +34,21 @@ public interface HttpRequest {
                     "if ("+ var+".readyState != 4) return;" +
                     callback.apply(var+".responseText") +
                     "};" +
-                    var +".open("+ AbstractScript.literal(method) +", "+ url +");" +
-                    headers.entrySet().stream().map(header -> var +".setRequestHeader("+ AbstractScript.literal(header.getKey())+", "+ header.getValue() +");")
+                    var +".open("+ JavaScript.literal(method) +", "+ url +");" +
+                    headers.entrySet().stream().map(header -> var +".setRequestHeader("+ JavaScript.literal(header.getKey())+", "+ header.getValue() +");")
                             .collect(Collectors.joining())+
                     var +".send("+ body +");";
         }
 
         @Override
-        public void setHeader(String header, AbstractScript.JsExpression value) {
+        public void setHeader(String header, JsExpression value) {
             headers.put(header, value);
         }
     }
 
 
     public static abstract class Parametric<N extends HttpRequest> implements HttpRequest {
-        private final Map<String, AbstractScript.JsExpression> headers = new HashMap<>();
+        private final Map<String, JsExpression> headers = new HashMap<>();
         private final List<N> requests = new ArrayList<>();
         protected N copyHeaders(N next) {
             headers.forEach(next::setHeader);
@@ -55,12 +57,12 @@ public interface HttpRequest {
         }
 
         @Override
-        public void setHeader(String header, AbstractScript.JsExpression value) {
+        public void setHeader(String header, JsExpression value) {
             headers.put(header, value);
             requests.forEach(r -> r.setHeader(header, value));
         }
 
-        public abstract N param(AbstractScript.JsExpression value);
+        public abstract N param(JsExpression value);
     }
 
 }

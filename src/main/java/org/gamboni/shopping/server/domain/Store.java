@@ -1,6 +1,5 @@
 package org.gamboni.shopping.server.domain;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableList;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -75,9 +74,19 @@ public class Store extends AbstractStore {
     }
 
     public void setItemState(Item item, State newState) {
+        State oldState = item.getState();
         item.setState(newState);
         item.setSequence(nextSequence());
-        var is = ItemState.forItem(item);
-        socket.broadcast(is);
+        socket.broadcast(oldState, item);
+    }
+
+    @Transactional
+    public State setItemState(String itemName, Action action) {
+        final Item item = getItemByName(itemName);
+        if (action.from.contains(item.getState())) {
+            setItemState(item, action.to);
+        }
+        return item.getState();
+
     }
 }
