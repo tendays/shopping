@@ -33,11 +33,11 @@ public class ShoppingServer {
     @Inject
     Store s;
 
-    private static final File IMAGE_PATH = new File(removeSubPath(new File("").getAbsoluteFile(),
-            "build", "classes", "java", "main"), "images");
+    private static final File IMAGE_PATH = new File(removeSubPath(new File("."),
+            "build", "classes", "java", "main", "."), "images");
 
     static File removeSubPath(File file, String... toRemove) {
-        File pointer = file;
+        File pointer = file.getAbsoluteFile();
         for (int i = toRemove.length - 1; i >= 0; i--) {
             if (pointer.getName().equals(toRemove[i])) {
                 pointer = pointer.getParentFile();

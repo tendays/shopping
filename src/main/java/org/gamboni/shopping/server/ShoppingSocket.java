@@ -64,8 +64,7 @@ public class ShoppingSocket {
                                             .toJsonString());
                         }
                         log.debug("Adding {} to broadcast list", session);
-                        sessions.put(session, mode);
-                        return null;
+                        return sessions.put(session, mode);
                     });
                 }, () -> Enums.valueOf(Action.class, command)
                         .ifPresentOrElse(action -> {
