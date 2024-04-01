@@ -7,4 +7,5 @@ public interface Resource {
     String render();
     String getUrl();
     Html asElement();
+    String getMime();
 }

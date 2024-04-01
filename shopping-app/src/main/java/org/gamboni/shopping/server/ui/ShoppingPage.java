@@ -2,6 +2,8 @@ package org.gamboni.shopping.server.ui;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import org.gamboni.shopping.server.domain.Item;
 import org.gamboni.shopping.server.domain.Items;
 import org.gamboni.shopping.server.tech.js.JavaScript;
@@ -12,13 +14,20 @@ import java.util.List;
 /**
  * @author tendays
  */
+@ApplicationScoped
 public class ShoppingPage extends AbstractPage {
     public static final String ID_PREFIX = "i-";
-    private final Style style = new Style();
-    private final Script script = new Script();
 
-    private final ItemComponent itemComponent = new ItemComponent(end, style, script);
+    @Inject
+    Style style;
+
+    @Inject
+    Script script;
+
     public Html render(UiMode mode, List<Item> items) {
+
+        final ItemComponent itemComponent = new ItemComponent(end, style, script);
+
         return html(ImmutableList.of(style, script,
                 new Resource() {
                     @Override
@@ -36,6 +45,11 @@ public class ShoppingPage extends AbstractPage {
                         return new Element("link",
                                 List.of(Html.attribute("rel", "icon"),
                                         Html.attribute("href", getUrl())));
+                    }
+
+                    @Override
+                    public String getMime() {
+                        return "image/png";
                     }
                 }), Lists.transform(items, i ->
                 itemComponent.render(

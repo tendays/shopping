@@ -38,6 +38,10 @@ public abstract class JavaScript {
         return s -> "return " + value.format(s) + ";";
     }
 
+    public static JsStatement _return() {
+        return s -> "return;";
+    }
+
     public record JsGlobal(String name) implements JsExpression {
         public String declare(Object initialValue) {
             return name +" = "+ initialValue +";\n";
@@ -235,10 +239,13 @@ public abstract class JavaScript {
         // not working in Quarkus (T)value.getClass().getDeclaredConstructor(String.class).newInstance(var));
     }
 
-    public static JsExpression lambda(Object body) {
+    public static JsExpression lambda(JsStatement body) {
         return s -> ("() => " +
                 // TODO don't add braces if it's already a block (define type)
-                (body instanceof JsStatement stat ? "{" + stat.format(s) +"}" : body.toString()));
+                 "{" + body.format(s) +"}");
+    }
+    public static JsExpression lambda(JsExpression body) {
+        return s -> ("() => " + body.format(s));
     }
 
     public static JsExpression lambda(String varName, Function<JsExpression, ?> body) {
@@ -264,6 +271,9 @@ public abstract class JavaScript {
     public static JsExpression newWebSocket(JsExpression url) {
         return s -> "new WebSocket(" + url.format(s) +")";
     }
+
+    /** The WebSocket class, can be used to access readyState values like OPEN, CLOSED, etc. */
+    public static JsExpression WebSocket = s -> "WebSocket";
 
     public static JsExpression jsonParse(JsExpression text) {
         return s -> "JSON.parse(" + text.format(s) +")";

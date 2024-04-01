@@ -5,18 +5,19 @@
 ## Build
 
 ```shell
-quarkus build --native
+./gradlew build -Dquarkus.package.type=native
 ```
 
-The executable gets saved to `build/shopping-quarkus-1.0.0-SNAPSHOT-runner`.
+The executable gets saved to `shopping-app/build/shopping-quarkus-1.0.0-SNAPSHOT-runner`.
 
 ## Setup
 
 1. Run the program to create the database schema
 2. Take photos of things you commonly need to buy
 3. Crop and resize them to get square pictures (I use 300x300 pixels)
-4. Give a name to all your pictures with the `ProductPicture` table.
-5. Insert all your shopping items into the `Item` table:
+4. Save them to a folder called `images` (when running the program, make sure that folder is in the current directory so it can find your photos)
+5. Give a name to all your pictures with the `ProductPicture` table.
+6. Insert all your shopping items into the `Item` table:
    * put `UNUSED` into `state`,
    * `1` into `sequence`,
    * the `text` of the `ProductPicture` you want to use for that item.

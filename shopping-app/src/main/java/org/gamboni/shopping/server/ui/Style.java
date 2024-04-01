@@ -1,11 +1,13 @@
 package org.gamboni.shopping.server.ui;
 
+import jakarta.enterprise.context.ApplicationScoped;
 import org.gamboni.shopping.server.domain.State;
 import org.gamboni.shopping.server.tech.ui.Css;
 
 /**
  * @author tendays
  */
+@ApplicationScoped
 public class Style extends Css {
     public EnumToClassName<State> forState = new EnumToClassName<>(State.class);
     public ClassName text = new ClassName("text");

@@ -24,4 +24,9 @@ public abstract class AbstractScript implements Resource {
                         attribute("src", getUrl())
                 ));
     }
+
+    @Override
+    public String getMime() {
+        return "text/javascript";
+    }
 }

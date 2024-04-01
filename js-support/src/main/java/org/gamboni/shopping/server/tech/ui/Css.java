@@ -45,6 +45,11 @@ public abstract class Css implements Resource {
                 Html.attribute("href", getUrl())));
     }
 
+    @Override
+    public String getMime() {
+        return "text/css";
+    }
+
     protected String rule(Selector selector, Property... attributes) {
         return selector.renderSelector() +" {\n" +
                 Stream.of(attributes).map(Objects::toString).collect(Collectors.joining())

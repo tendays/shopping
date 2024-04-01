@@ -33,6 +33,15 @@ public class ShoppingServer {
     @Inject
     Store s;
 
+    @Inject
+    ShoppingPage shoppingPage;
+
+    @Inject
+    Script script;
+
+    @Inject
+    Style style;
+
     // The removePath() is needed in dev-mode. In native mode it should be run just above the images folder
     private static final File IMAGE_PATH = new File(removeSubPath(new File("."),
             "build", "classes", "java", "main", "."), "images");
@@ -74,16 +83,19 @@ public class ShoppingServer {
         return "ok";
     }
 
+    // TODO actually use getUrl() and getMime() from Resource
     @GET
     @Path("style.css")
+    @Produces("text/css")
     public String style() {
-        return new Style().render();
+        return style.render();
     }
 
     @GET
     @Path("/script.js")
+    @Produces("text/javascript")
     public String script() {
-        return new Script().render();
+        return script.render();
     }
 
     @GET
@@ -91,7 +103,7 @@ public class ShoppingServer {
     @Produces("text/html")
     @Transactional
     public String ui(@PathParam("mode") UiMode mode) {
-        return new ShoppingPage().render(mode, mode.load(s)).toString();
+        return shoppingPage.render(mode, mode.load(s)).toString();
     }
 
 

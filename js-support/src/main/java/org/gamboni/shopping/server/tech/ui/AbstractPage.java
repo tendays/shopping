@@ -39,5 +39,10 @@ public abstract class AbstractPage extends AbstractComponent {
             .add(Html.attribute("onload", code))
             .build());
         }
+
+        @Override
+        public String toString() {
+            return "<!DOCTYPE html>\n" + super.toString();
+        }
     }
 }

@@ -1,5 +1,7 @@
 package org.gamboni.shopping.server.ui;
 
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import org.gamboni.shopping.server.domain.Action;
 import org.gamboni.shopping.server.domain.ItemTransition;
 import org.gamboni.shopping.server.domain.JsItemTransition;
@@ -14,13 +16,21 @@ import static org.gamboni.shopping.server.tech.js.JavaScript.*;
 /**
  * @author tendays
  */
+@ApplicationScoped
 public class Script extends AbstractScript {
+    public static final int POLL_INTERVAL = 60000;
+
+    @Inject
+    Style style;
+
     // TODO auto-initialise all these by their name
     public final Fun2 actionForState = new Fun2("actionForState");
     /** Submit an action to send to back-end */
     private final Fun1 submit = new Fun1("submit");
     /** Set the state of an item. */
     private final Fun1 setState = new Fun1("setState");
+
+    private final Fun2 flushQueue = new Fun2("flushQueue");
 
     public final Fun2 poll = new Fun2("poll");
 
@@ -34,7 +44,6 @@ public class Script extends AbstractScript {
     /** Queued events, used when the connection is down. */
     private final JsGlobal queue = new JsGlobal("queue");
 
-    private final Style style = new Style();
     public String render() {
         return sequence.declare(0) +
                 socket.declare("null") + // should likely immediately call the poll() function
@@ -57,7 +66,7 @@ public class Script extends AbstractScript {
                 ) +
 
                 submit.declare(action ->
-                        _if(socket.dot("readyState").eq(literal(1)),
+                        _if(socket.dot("readyState").eq(WebSocket.dot("OPEN")),
                                 socket.invoke("send", action.dot("action").plus(" ")
                                         .plus(action.dot("id"))))
                                 ._else(queue.invoke("push", action))) +
@@ -72,27 +81,34 @@ public class Script extends AbstractScript {
                                                 e.classList().add(state.dot("state").toLowerCase()) // TODO toLowerCase repeats work done by style.forState
                                         ))))) +
 
+                flushQueue.declare((newSequence, mode) -> seq(
+                        socket.invoke("send", mode.plus(literal(" "))
+                                .plus(newSequence)),
+                        let(queue,
+                                JsExpression::of,
+                                queueCopy -> seq(
+                                        queue.set(array()),
+                                        queueCopy.invoke("forEach", lambda(
+                                                "item",
+                                                submit::invoke
+                                        ))
+                                )
+                        ))) +
+
                 poll.declare((mode, newSequence) -> seq(
                                 sequence.set(newSequence),
                                 socket.set(newWebSocket(
                                                         new JsString(s -> "((window.location.protocol === 'https:') ? 'wss://' : 'ws://')")
                                                                 .plus(s -> "window.location.host")
                                         .plus(literal(ShoppingApi.SOCKET_URL)))),
+                                /* If the websocket is already closed, we could not establish the connection, and try again later. */
+                                _if(socket.dot("readyState").eq(WebSocket.dot("CLOSED")), block(
+                                                setTimeout(poll.invoke(mode, sequence), POLL_INTERVAL),
+                                        _return()
+                                ))._elseIf(socket.dot("readyState").eq(WebSocket.dot("OPEN")),
+                                        flushQueue.invoke(newSequence, mode)),
                                 socket.invoke("addEventListener", literal("open"),
-                                        lambda(seq(
-                                                socket.invoke("send", mode.plus(literal(" "))
-                                                        .plus(newSequence)),
-                                                let(queue,
-                                                        JsExpression::of,
-                                                        queueCopy -> seq(
-                                                                queue.set(array()),
-                                                                queueCopy.invoke("forEach", lambda(
-                                                                        "item",
-                                                                        submit::invoke
-                                                                ))
-                                                        )
-                                                )
-                                        ))),
+                                        lambda(flushQueue.invoke(newSequence, mode))),
 
                                 socket.invoke("addEventListener", literal("message"),
                                         lambda("event",
@@ -117,7 +133,7 @@ public class Script extends AbstractScript {
                                 let(/* close handler */
                                         lambda("event", event ->
                                                 seq(consoleLog(event),
-                                                        setTimeout(poll.invoke(mode, sequence), 60000)
+                                                        setTimeout(poll.invoke(mode, sequence), POLL_INTERVAL)
                                                 )),
                                         JsExpression::of,
                                         closeHandler -> seq(
@@ -131,7 +147,7 @@ public class Script extends AbstractScript {
                                                                                 // ... but we don't want to run setTimeout twice.
                                                                                 socket.invoke("removeEventListener", literal("close"), closeHandler),
 
-                                                                                setTimeout(poll.invoke(mode, sequence), 60000)
+                                                                                setTimeout(poll.invoke(mode, sequence), POLL_INTERVAL)
                                                                         )
                                                         )
                                                 )
