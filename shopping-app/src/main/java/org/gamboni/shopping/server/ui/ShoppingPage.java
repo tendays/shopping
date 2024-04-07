@@ -6,8 +6,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.gamboni.shopping.server.domain.Item;
 import org.gamboni.shopping.server.domain.Items;
-import org.gamboni.shopping.server.tech.js.JavaScript;
-import org.gamboni.shopping.server.tech.ui.*;
+import org.gamboni.tech.web.js.JavaScript;
+import org.gamboni.tech.web.ui.*;
 
 import java.util.List;
 

@@ -1,8 +1,8 @@
 package org.gamboni.shopping.server.domain;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
-import org.gamboni.shopping.server.tech.js.JS;
 import org.gamboni.shopping.server.ui.UiMode;
+import org.gamboni.tech.web.js.JS;
 
 /**
  * @author tendays

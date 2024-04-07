@@ -7,11 +7,11 @@ import org.gamboni.shopping.server.domain.ItemTransition;
 import org.gamboni.shopping.server.domain.JsItemTransition;
 import org.gamboni.shopping.server.domain.State;
 import org.gamboni.shopping.server.http.ShoppingApi;
-import org.gamboni.shopping.server.tech.ui.AbstractComponent;
-import org.gamboni.shopping.server.tech.ui.AbstractScript;
-import org.gamboni.shopping.server.tech.ui.Value;
+import org.gamboni.tech.web.ui.AbstractComponent;
+import org.gamboni.tech.web.ui.AbstractScript;
+import org.gamboni.tech.web.ui.Value;
 
-import static org.gamboni.shopping.server.tech.js.JavaScript.*;
+import static org.gamboni.tech.web.js.JavaScript.*;
 
 /**
  * @author tendays

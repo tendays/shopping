@@ -27,11 +27,10 @@ dependencies {
     compileOnly 'org.projectlombok:lombok:1.18.30'
 
     annotationProcessor 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.gamboni:tech-web:1.0.0-SNAPSHOT'
     annotationProcessor 'org.hibernate.orm:hibernate-jpamodelgen:6.0.2.Final'
-    annotationProcessor project(':js-support')
 
-    implementation project(':js-support')
-
+    implementation 'org.gamboni:tech-web:1.0.0-SNAPSHOT'
     implementation 'io.quarkus:quarkus-resteasy-reactive'
     implementation 'io.quarkus:quarkus-resteasy-reactive-jackson'
     implementation 'io.quarkus:quarkus-websockets'

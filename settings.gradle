@@ -9,4 +9,4 @@ pluginManagement {
     }
 }
 rootProject.name='shopping-quarkus'
-include('shopping-app', 'js-support')
+include('shopping-app')

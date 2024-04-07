@@ -2,7 +2,7 @@ package org.gamboni.shopping.server.ui;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import org.gamboni.shopping.server.domain.State;
-import org.gamboni.shopping.server.tech.ui.Css;
+import org.gamboni.tech.web.ui.Css;
 
 /**
  * @author tendays

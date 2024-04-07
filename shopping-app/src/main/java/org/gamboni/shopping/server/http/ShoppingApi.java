@@ -4,7 +4,7 @@ import jakarta.ws.rs.HttpMethod;
 import org.gamboni.shopping.server.domain.Action;
 import org.gamboni.shopping.server.tech.http.ApiMethod;
 import org.gamboni.shopping.server.tech.http.Format;
-import org.gamboni.shopping.server.tech.ui.HttpRequest;
+import org.gamboni.tech.web.ui.HttpRequest;
 
 import java.util.function.Function;
 

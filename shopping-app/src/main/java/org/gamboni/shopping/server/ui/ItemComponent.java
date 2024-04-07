@@ -1,10 +1,10 @@
 package org.gamboni.shopping.server.ui;
 
 import org.gamboni.shopping.server.domain.State;
-import org.gamboni.shopping.server.tech.ui.AbstractComponent;
-import org.gamboni.shopping.server.tech.ui.Element;
-import org.gamboni.shopping.server.tech.ui.Html;
-import org.gamboni.shopping.server.tech.ui.Value;
+import org.gamboni.tech.web.ui.AbstractComponent;
+import org.gamboni.tech.web.ui.Element;
+import org.gamboni.tech.web.ui.Html;
+import org.gamboni.tech.web.ui.Value;
 
 import java.util.List;
 

@@ -1,8 +1,8 @@
 package org.gamboni.shopping.server.tech.http;
 
-import org.gamboni.shopping.server.tech.js.JavaScript;
-import org.gamboni.shopping.server.tech.js.JavaScript.JsExpression;
-import org.gamboni.shopping.server.tech.ui.HttpRequest;
+import org.gamboni.tech.web.js.JavaScript;
+import org.gamboni.tech.web.js.JavaScript.JsExpression;
+import org.gamboni.tech.web.ui.HttpRequest;
 
 import java.util.function.Function;
 
