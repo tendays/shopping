@@ -2,11 +2,9 @@ package org.gamboni.shopping.server.ui;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.gamboni.shopping.server.domain.Action;
-import org.gamboni.shopping.server.domain.ItemTransition;
-import org.gamboni.shopping.server.domain.JsItemTransition;
-import org.gamboni.shopping.server.domain.State;
+import org.gamboni.shopping.server.domain.*;
 import org.gamboni.shopping.server.http.ShoppingApi;
+import org.gamboni.tech.web.js.JsPersistentWebSocket;
 import org.gamboni.tech.web.ui.AbstractComponent;
 import org.gamboni.tech.web.ui.AbstractScript;
 import org.gamboni.tech.web.ui.Value;
@@ -18,45 +16,75 @@ import static org.gamboni.tech.web.js.JavaScript.*;
  */
 @ApplicationScoped
 public class Script extends AbstractScript {
-    public static final int POLL_INTERVAL = 60000;
 
     @Inject
     Style style;
 
     // TODO auto-initialise all these by their name
     public final Fun2 actionForState = new Fun2("actionForState");
-    /** Submit an action to send to back-end */
-    private final Fun1 submit = new Fun1("submit");
+
+    public final Fun2 init = new Fun2("init");
+
     /** Set the state of an item. */
     private final Fun1 setState = new Fun1("setState");
-
-    private final Fun2 flushQueue = new Fun2("flushQueue");
-
-    public final Fun2 poll = new Fun2("poll");
 
     /** Function creating a div for a given item. */
     public final Fun2 newElement = new Fun2("newElement");
 
     /** Latest sequence number obtained from server. */
     private final JsGlobal sequence = new JsGlobal("sequence");
-    /** Current websocket object. A new one is created every time the connection drops. */
-    private final JsGlobal socket = new JsGlobal("socket");
-    /** Queued events, used when the connection is down. */
-    private final JsGlobal queue = new JsGlobal("queue");
+
+    private final JsGlobal mode = new JsGlobal("mode");
+
+    private final JsPersistentWebSocket socket = new JsPersistentWebSocket(ShoppingApi.SOCKET_URL) {
+
+        @Override
+        protected JsStatement handleEvent(JsExpression message) {
+            return block(
+                    let(
+                            new JsItemTransition(message),
+                            JsItemTransition::new,
+                            data ->
+                                    let(getElementForState(data),
+                                            JsHtmlElement::new,
+                                            existing ->
+                                                    _if(data.type().eq(literal(ItemTransition.Type.HIDDEN))
+                                                                    .and(existing),
+                                                            existing.remove())
+                                                            ._elseIf(data.type().eq(literal(ItemTransition.Type.VISIBLE))
+                                                                            .and(existing),
+                                                                    setState.invoke(data))
+                                                            ._elseIf(data.type().eq(literal(ItemTransition.Type.VISIBLE)),
+                                                                    newElement.invoke(mode, data))
+                                    )));
+        }
+
+        @Override
+        protected JsExpression helloValue() {
+            return JsHello.literal(
+                    mode,
+                    sequence);
+        }
+    };
 
     public String render() {
-        return sequence.declare(0) +
-                socket.declare("null") + // should likely immediately call the poll() function
-                queue.declare("[]") +
+        return sequence.declare(0) + // initialised by init()
+                mode.declare(_null) + // initialised by init()
+                init.declare((modeValue, sequenceValue) -> block(
+                        mode.set(modeValue),
+                        sequence.set(sequenceValue),
+                        socket.poll())
+                ) +
+                socket.declare() +
                 actionForState.declare((mode, e) -> {
                             JsHtmlElement elt = new JsHtmlElement(e);
 
-                            return _if(mode.eq(literal(UiMode.SELECT.name())), block(
+                            return _if(mode.eq(UiMode.SELECT), block(
                                     _if(elt.classList().contains(style.forState.get(State.UNUSED)),
                                             doAction(elt, Action.ADD_TO_LIST))
                                             ._elseIf(elt.classList().contains(style.forState.get(State.TO_BUY)),
                                                     doAction(elt, Action.REMOVE_FROM_LIST))))
-                                    ._elseIf(mode.eq(literal(UiMode.SHOP.name())), block(
+                                    ._elseIf(mode.eq(UiMode.SHOP), block(
                                             _if(elt.classList().contains(style.forState.get(State.TO_BUY)),
                                                     doAction(elt, Action.MARK_AS_BOUGHT))
                                                     ._elseIf(elt.classList().contains(style.forState.get(State.BOUGHT)),
@@ -64,12 +92,6 @@ public class Script extends AbstractScript {
                                                     )));
                         }
                 ) +
-
-                submit.declare(action ->
-                        _if(socket.dot("readyState").eq(WebSocket.dot("OPEN")),
-                                socket.invoke("send", action.dot("action").plus(" ")
-                                        .plus(action.dot("id"))))
-                                ._else(queue.invoke("push", action))) +
 
                 setState.declare(state -> seq(
                         _if(state.dot("sequence"), sequence.set(state.dot("sequence"))),
@@ -80,80 +102,6 @@ public class Script extends AbstractScript {
                                                 e.classList().remove(e.classList().item(0)),
                                                 e.classList().add(state.dot("state").toLowerCase()) // TODO toLowerCase repeats work done by style.forState
                                         ))))) +
-
-                flushQueue.declare((newSequence, mode) -> seq(
-                        socket.invoke("send", mode.plus(literal(" "))
-                                .plus(newSequence)),
-                        let(queue,
-                                JsExpression::of,
-                                queueCopy -> seq(
-                                        queue.set(array()),
-                                        queueCopy.invoke("forEach", lambda(
-                                                "item",
-                                                submit::invoke
-                                        ))
-                                )
-                        ))) +
-
-                poll.declare((mode, newSequence) -> seq(
-                                sequence.set(newSequence),
-                                socket.set(newWebSocket(
-                                                        new JsString(s -> "((window.location.protocol === 'https:') ? 'wss://' : 'ws://')")
-                                                                .plus(s -> "window.location.host")
-                                        .plus(literal(ShoppingApi.SOCKET_URL)))),
-                                /* If the websocket is already closed, we could not establish the connection, and try again later. */
-                                _if(socket.dot("readyState").eq(WebSocket.dot("CLOSED")), block(
-                                                setTimeout(poll.invoke(mode, sequence), POLL_INTERVAL),
-                                        _return()
-                                ))._elseIf(socket.dot("readyState").eq(WebSocket.dot("OPEN")),
-                                        flushQueue.invoke(newSequence, mode)),
-                                socket.invoke("addEventListener", literal("open"),
-                                        lambda(flushQueue.invoke(newSequence, mode))),
-
-                                socket.invoke("addEventListener", literal("message"),
-                                        lambda("event",
-                                                event -> block(
-                                                        let(
-                                                                new JsItemTransition(jsonParse(event.dot("data"))),
-                                                        JsItemTransition::new,
-                                                        data ->
-                                                                let(getElementForState(data),
-                                                                JsHtmlElement::new,
-                                                                existing ->
-                                                                _if(data.type().eq(literal(ItemTransition.Type.HIDDEN))
-                                                                                .and(existing),
-                                                                        existing.remove())
-                                                                ._elseIf(data.type().eq(literal(ItemTransition.Type.VISIBLE))
-                                                                                .and(existing),
-                                                                        setState.invoke(data))
-                                                                ._elseIf(data.type().eq(literal(ItemTransition.Type.VISIBLE)),
-                                                                                newElement.invoke(mode, data))
-                                                                                ))))),
-
-                                let(/* close handler */
-                                        lambda("event", event ->
-                                                seq(consoleLog(event),
-                                                        setTimeout(poll.invoke(mode, sequence), POLL_INTERVAL)
-                                                )),
-                                        JsExpression::of,
-                                        closeHandler -> seq(
-                                                // infinite loops trying to reconnect
-                                                socket.invoke("addEventListener", literal("close"), closeHandler),
-
-                                                socket.invoke("addEventListener", literal("error"), lambda("event",
-                                                                event ->
-                                                                        seq(consoleLog(event),
-                                                                                // when an open socket errors out we get both error and close events
-                                                                                // ... but we don't want to run setTimeout twice.
-                                                                                socket.invoke("removeEventListener", literal("close"), closeHandler),
-
-                                                                                setTimeout(poll.invoke(mode, sequence), POLL_INTERVAL)
-                                                                        )
-                                                        )
-                                                )
-                                        ))
-                        )
-                ) +
                 newElement.declare((mode, item) -> {
                     var itemTransition = new JsItemTransition(item);
                     return seq(
@@ -179,9 +127,10 @@ public class Script extends AbstractScript {
 
     private JsStatement doAction(JsHtmlElement elt, Action action) {
         State targetState = action.to;
-        return block(submit.invoke(obj(
-                        "id", elt.id().substring(ShoppingPage.ID_PREFIX.length()),
-                        "action", literal(action.name()))),
+        return block(socket.submit(
+                JsShoppingCommand.literal(
+                        elt.id().substring(ShoppingPage.ID_PREFIX.length()),
+                        literal(action.name()))),
                 setState.invoke(obj(
                         "id", elt.id().substring(ShoppingPage.ID_PREFIX.length()),
                         "state", literal(style.forState.get(targetState)))));

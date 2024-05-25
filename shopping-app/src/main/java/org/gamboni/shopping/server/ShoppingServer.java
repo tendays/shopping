@@ -42,7 +42,7 @@ public class ShoppingServer {
     @Inject
     Style style;
 
-    // The removePath() is needed in dev-mode. In native mode it should be run just above the images folder
+    // The removeSubPath() is needed in dev-mode. In native mode it should be run just above the images folder
     private static final File IMAGE_PATH = new File(removeSubPath(new File("."),
             "build", "classes", "java", "main", "."), "images");
 
@@ -58,25 +58,6 @@ public class ShoppingServer {
         return pointer;
     }
 
-
-    /*        Spark.exception(BadRequestException.class, (t, req, res) -> {
-                t.printStackTrace();
-                res.status(400);
-                res.body("Bad request");
-                    });
-
-            Spark.exception(Exception.class, (t, req, res) -> {
-                t.printStackTrace();
-                res.status(500);
-                res.body("Internal server error");
-            });
-
-            Style style = new Style();
-            Spark.get(style.getUrl(), (req, res) -> style.render());
-
-            Script script = new Script();
-            Spark.get(script.getUrl(), (req, res) -> script.render());
-    */
     @GET
     @Path("ping")
     public String ping() {

@@ -7,12 +7,8 @@ import jakarta.inject.Inject;
 import jakarta.websocket.*;
 import jakarta.websocket.server.ServerEndpoint;
 import lombok.extern.slf4j.Slf4j;
-import org.gamboni.shopping.server.domain.Action;
-import org.gamboni.shopping.server.domain.Item;
-import org.gamboni.shopping.server.domain.ItemTransition;
-import org.gamboni.shopping.server.domain.Store;
+import org.gamboni.shopping.server.domain.*;
 import org.gamboni.shopping.server.http.ShoppingApi;
-import org.gamboni.shopping.server.tech.Enums;
 import org.gamboni.shopping.server.ui.UiMode;
 
 import java.io.IOException;
@@ -42,39 +38,24 @@ public class ShoppingSocket {
     @OnMessage
     public synchronized void onMessage(String message, Session session) throws IOException {
         log.info("Got message '{}' on {}", message, session);
-        int space = message.indexOf(' ');
-        if (space == -1) {
-            log.error("Unknown message {}", message);
-            return;
+        WebSocketPayload payload = json.readValue(message, WebSocketPayload.class);
+        if (payload instanceof Hello hello) {
+            vertx.executeBlocking(() -> {
+                log.debug("Processing subscription since {}", hello.since());
+
+                for (Item item : s.getItemsSince(hello.since())) {
+                    log.debug("Sending initial item {} to {}",
+                            item.getText(), session);
+                    session.getAsyncRemote().sendText(
+                            ItemTransition.forItem(hello.mode(), item)
+                                    .toJsonString());
+                }
+                log.debug("Adding {} to broadcast list", session);
+                return sessions.put(session, hello.mode());
+            });
+        } else if (payload instanceof ShoppingCommand command) {
+            vertx.executeBlocking(() -> s.setItemState(command.id(), command.action()));
         }
-        String command = message.substring(0, space);
-        String param = message.substring(space + 1);
-
-        Enums.valueOf(UiMode.class, command)
-                .ifPresentOrElse(mode -> {
-                    long since = Long.parseLong(param);
-                    vertx.executeBlocking(() -> {
-                        log.debug("Processing subscription since {}", since);
-
-                        for (Item item : s.getItemsSince(since)) {
-                            log.debug("Sending initial item {} to {}",
-                                    item.getText(), session);
-                            session.getAsyncRemote().sendText(
-                                    ItemTransition.forItem(mode, item)
-                                            .toJsonString());
-                        }
-                        log.debug("Adding {} to broadcast list", session);
-                        return sessions.put(session, mode);
-                    });
-                }, () -> Enums.valueOf(Action.class, command)
-                        .ifPresentOrElse(action -> {
-                            if (param.isEmpty()) {
-                                log.error(action + " without name!");
-                                return;
-                            }
-
-                            vertx.executeBlocking(() -> s.setItemState(param, action));
-                        }, () -> log.error("unknown action " + command)));
     }
 
     @OnClose

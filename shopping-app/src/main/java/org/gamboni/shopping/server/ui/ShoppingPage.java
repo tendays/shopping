@@ -57,6 +57,6 @@ public class ShoppingPage extends AbstractPage {
                         Value.of(i.getState()),
                         Value.of(i.getImage().getText()),
                         Value.of(i.getText()))
-                )).onLoad(script.poll.invoke(JavaScript.literal(mode.name()), JavaScript.literal(Items.nextSequence(items).orElse(0))));
+                )).onLoad(script.init.invoke(JavaScript.literal(mode.name()), JavaScript.literal(Items.nextSequence(items).orElse(0))));
     }
 }
