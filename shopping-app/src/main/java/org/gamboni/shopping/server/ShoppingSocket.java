@@ -1,82 +1,45 @@
 package org.gamboni.shopping.server;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.vertx.core.Vertx;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.websocket.*;
+import jakarta.websocket.OnMessage;
+import jakarta.websocket.Session;
 import jakarta.websocket.server.ServerEndpoint;
 import lombok.extern.slf4j.Slf4j;
 import org.gamboni.shopping.server.domain.*;
 import org.gamboni.shopping.server.http.ShoppingApi;
-import org.gamboni.shopping.server.ui.UiMode;
+import org.gamboni.tech.quarkus.QuarkusWebSocket;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 @ServerEndpoint(ShoppingApi.SOCKET_URL)
 @ApplicationScoped
 @Slf4j
-public class ShoppingSocket {
-
-    @Inject
-    Vertx vertx;
-
+public class ShoppingSocket extends QuarkusWebSocket {
     @Inject
     Store s;
-
-    @Inject
-    ObjectMapper json;
-
-    private final Map<Session, UiMode> sessions = new HashMap<>();
-    @OnOpen
-    public synchronized void onOpen(Session session) {
-        log.debug("New session opened");
-    }
-
     @OnMessage
     public synchronized void onMessage(String message, Session session) throws IOException {
         log.info("Got message '{}' on {}", message, session);
         WebSocketPayload payload = json.readValue(message, WebSocketPayload.class);
-        if (payload instanceof Hello hello) {
-            vertx.executeBlocking(() -> {
+        vertx.executeBlocking(() -> {
+            if (payload instanceof Hello hello) {
                 log.debug("Processing subscription since {}", hello.since());
 
-                for (Item item : s.getItemsSince(hello.since())) {
+                for (ItemTransition transition : s.addListener(
+                        new SessionBroadcastTarget(session), hello.mode(), hello.since())
+                        .updates()) {
                     log.debug("Sending initial item {} to {}",
-                            item.getText(), session);
+                            transition.id(), session);
                     session.getAsyncRemote().sendText(
-                            ItemTransition.forItem(hello.mode(), item)
-                                    .toJsonString());
+                            transition.toJsonString());
                 }
-                log.debug("Adding {} to broadcast list", session);
-                return sessions.put(session, hello.mode());
-            });
-        } else if (payload instanceof ShoppingCommand command) {
-            vertx.executeBlocking(() -> s.setItemState(command.id(), command.action()));
-        }
-    }
-
-    @OnClose
-    public synchronized void onClose(Session session) {
-        log.info("Session {} closing", session);
-        sessions.remove(session);
-    }
-
-    @OnError
-    public synchronized void onError(Session session, Throwable error) {
-        log.error("Session {} failed", session, error);
-        sessions.remove(session);
-    }
-
-    public synchronized void broadcast(Item item) {
-        log.info("Notifying " + sessions.size() + " watchers");
-        sessions.forEach((session, mode) -> {
-            session.getAsyncRemote().sendText(
-                    ItemTransition.forItem(mode, item)
-                            .toJsonString()
-            );
+            } else if (payload instanceof ShoppingCommand command) {
+                broadcast(s.update(us -> us.setItemState(command.id(), command.action()))::get);
+            } else {
+                throw new IllegalArgumentException();
+            }
+            return null; // unused return value
         });
     }
 }

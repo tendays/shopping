@@ -13,10 +13,8 @@ import jakarta.ws.rs.core.StreamingOutput;
 import lombok.extern.slf4j.Slf4j;
 import org.gamboni.shopping.server.domain.ProductPicture;
 import org.gamboni.shopping.server.domain.Store;
-import org.gamboni.shopping.server.ui.Script;
 import org.gamboni.shopping.server.ui.ShoppingPage;
 import org.gamboni.shopping.server.ui.Style;
-import org.gamboni.shopping.server.ui.UiMode;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -35,9 +33,6 @@ public class ShoppingServer {
 
     @Inject
     ShoppingPage shoppingPage;
-
-    @Inject
-    Script script;
 
     @Inject
     Style style;
@@ -63,30 +58,6 @@ public class ShoppingServer {
     public String ping() {
         return "ok";
     }
-
-    // TODO actually use getUrl() and getMime() from Resource
-    @GET
-    @Path("style.css")
-    @Produces("text/css")
-    public String style() {
-        return style.render();
-    }
-
-    @GET
-    @Path("/script.js")
-    @Produces("text/javascript")
-    public String script() {
-        return script.render();
-    }
-
-    @GET
-    @Path("/{mode}")
-    @Produces("text/html")
-    @Transactional
-    public String ui(@PathParam("mode") UiMode mode) {
-        return shoppingPage.render(mode, mode.load(s)).toString();
-    }
-
 
     /**
      * Load a product image

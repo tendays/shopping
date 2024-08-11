@@ -1,46 +1,52 @@
 package org.gamboni.shopping.server.domain;
 
-import com.google.common.collect.ImmutableList;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Root;
 import jakarta.transaction.Transactional;
-import org.gamboni.shopping.server.ShoppingSocket;
-import org.gamboni.shopping.server.tech.data.AbstractStore;
+import lombok.extern.slf4j.Slf4j;
+import org.gamboni.shopping.server.ui.UiMode;
+import org.gamboni.tech.history.StampedEventList;
+import org.gamboni.tech.persistence.PersistedHistoryStore;
+import org.gamboni.tech.web.ws.BroadcastTarget;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.TreeMap;
 import java.util.function.BiConsumer;
 
 /**
  * @author tendays
  */
 @ApplicationScoped
-public class Store extends AbstractStore {
+@Slf4j
+public class Store extends PersistedHistoryStore<
+        UiMode, // Query type
+        StampedEventList<Item>, // Snapshot type
+        Store.UpdateSession, // Session type
+        ItemTransition // Event type
+        > {
 
-    @Inject
-    ShoppingSocket socket;
+    private final Map<BroadcastTarget, UiMode> sessions = new HashMap<>();
 
-    public long nextSequence() {
-        return ((Number) em.createNativeQuery("select next value for versions").getSingleResult())
-                .longValue();
+    @Override
+    protected long getStamp() {
+        // It seems we can unfortunately not query the sequence directly. Maybe we should just use a single-celled table instead
+        final CriteriaQuery<Long> query = em.getCriteriaBuilder().createQuery(Long.class);
+        final Root<Item> root = query.from(Item.class);
+        query.select(em.getCriteriaBuilder()
+                .max(root.get(Item_.sequence)));
+        return em.createQuery(query).getSingleResult();
     }
 
     public List<Item> getAllItems() {
-        Map<String, Item> map = new TreeMap<>();
-        searchPictures((q, r) -> {
-        }).getResultList()
-                .forEach(p -> map.put(p.getText(),
-                        new Item(p)));
-        searchItems((q, r) -> {
-        }).getResultList()
-                .forEach(i -> map.put(i.getText(), i));
-
-        return ImmutableList.copyOf(map.values());
+        return searchItems((q, r) ->
+            q.orderBy(
+                    em.getCriteriaBuilder()
+                            .asc(r.get(Item_.text))
+            )).getResultList();
     }
 
     public synchronized Item getItemByName(String name) {
@@ -51,7 +57,6 @@ public class Store extends AbstractStore {
             return newItem;
         });
     }
-
 
     public TypedQuery<Item> searchItems(BiConsumer<CriteriaQuery<Item>, Root<Item>> criteria) {
         return search(Item.class, criteria);
@@ -65,27 +70,48 @@ public class Store extends AbstractStore {
         return find(ProductPicture.class, text);
     }
 
+    @Override
     @Transactional
-    public List<Item> getItemsSince(Long since) {
+    public synchronized StampedEventList<Item> getSnapshot(UiMode query) {
+        return new StampedEventList<>(getStamp(), getAllItems());
+    }
+
+    @Override
+    protected UpdateSession newTransaction(long stamp) {
+        return new UpdateSession(stamp);
+    }
+
+    @Override
+    protected List<ItemTransition> internalAddListener(BroadcastTarget client, UiMode mode, long since) {
+        log.debug("Adding {} to broadcast list", client);
+        sessions.put(client, mode);
+
         var cb = em.getCriteriaBuilder();
         return search(Item.class, (query, root) ->
-                        query.where(cb.gt(root.get(Item_.sequence), since)))
-                .getResultList();
+                query.where(cb.gt(root.get(Item_.sequence), since)))
+                .getResultStream()
+                .map(i -> ItemTransition.forItem(mode, i))
+                .toList();
     }
 
-    public void setItemState(Item item, State newState) {
-        item.setState(newState);
-        item.setSequence(nextSequence());
-        socket.broadcast(item);
-    }
-
-    @Transactional
-    public State setItemState(String itemName, Action action) {
-        final Item item = getItemByName(itemName);
-        if (action.from.contains(item.getState())) {
-            setItemState(item, action.to);
+    public class UpdateSession extends AbstractUpdateSession<ItemTransition> {
+        UpdateSession(long stamp) {
+            super(stamp);
         }
-        return item.getState();
 
+        public State setItemState(String itemName, Action action) {
+            final Item item = getItemByName(itemName);
+            if (action.from.contains(item.getState())) {
+                setItemState(item, action.to);
+            }
+            return item.getState();
+        }
+
+        public void setItemState(Item item, State newState) {
+            item.setState(newState);
+            item.setSequence(stamp);
+            sessions.forEach((target, mode) -> notifications.put(target,
+                    ItemTransition.forItem(mode, item)));
+        }
     }
 }

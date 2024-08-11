@@ -12,12 +12,17 @@ import org.gamboni.shopping.server.domain.Store;
 public class NightlyCleanup {
     @Inject
     Store store;
+    @Inject
+    ShoppingSocket socket;
 
     @Scheduled(cron = "0 0 0 * * ?")
     @Transactional
     public void clearBoughtItems() {
-        store.searchItems((criteria, root) ->
-            criteria.where(store.getEm().getCriteriaBuilder().equal(root.get(Item_.state), State.BOUGHT))).getResultList()
-                .forEach(item -> store.setItemState(item, State.UNUSED));
+        socket.broadcast(
+        store.update(session -> {
+            store.searchItems((criteria, root) ->
+                            criteria.where(store.getEm().getCriteriaBuilder().equal(root.get(Item_.state), State.BOUGHT))).getResultList()
+                    .forEach(item -> session.setItemState(item, State.UNUSED));
+        })::get);
     }
 }

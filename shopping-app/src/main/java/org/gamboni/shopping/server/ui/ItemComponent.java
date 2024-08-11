@@ -1,6 +1,6 @@
 package org.gamboni.shopping.server.ui;
 
-import org.gamboni.shopping.server.domain.State;
+import org.gamboni.shopping.server.domain.ItemTransitionValues;
 import org.gamboni.tech.web.ui.AbstractComponent;
 import org.gamboni.tech.web.ui.Element;
 import org.gamboni.tech.web.ui.Html;
@@ -12,24 +12,21 @@ import static org.gamboni.shopping.server.ui.ShoppingPage.ID_PREFIX;
 
 public class ItemComponent extends AbstractComponent {
     private final Style style;
-    private final Script script;
+    private final ShoppingPage page;
 
-    public ItemComponent(End end, Style style, Script script) {
+    public ItemComponent(End end, Style style, ShoppingPage page) {
         super(end);
         this.style = style;
-        this.script = script;
+        this.page = page;
     }
 
-    public Element render(Value<UiMode> mode, /*Item i*/Value<State> state, Value<String> image, Value<String> text) {
-        // TODO 1. have a dto metamodel to make 'text', 'image' and 'state' accessible
-        return div(List.of(style.forState.get(state),
-                        Html.eventHandler("onclick", self -> script.actionForState.invoke(
+    public Element render(Value<UiMode> mode, ItemTransitionValues item) {
+        return div(List.of(style.forState.get(item.state()),
+                        Html.eventHandler("onclick", self -> page.actionForState.invoke(
                                 mode.toExpression(), self)),
-                        Html.attribute("id", Value.concat(Value.of(ID_PREFIX), text))),
-                /*i.image().map(pp -> */img(style.image,
-                        Value.concat(Value.of("/i/"), image)/*pp.getText()))
-                        .orElse(Html.EMPTY)*/),
-                div(List.of(style.text), Html.escape(text)
+                        Html.attribute("id", Value.concat(Value.of(ID_PREFIX), item.id()))),
+                img(style.image, Value.concat(Value.of("/i/"), item.image())),
+                div(List.of(style.text), Html.escape(item.id())
                 )
         );
     }
