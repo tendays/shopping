@@ -14,8 +14,7 @@ public class ItemComponent extends AbstractComponent {
     private final Style style;
     private final ShoppingPage page;
 
-    public ItemComponent(End end, Style style, ShoppingPage page) {
-        super(end);
+    public ItemComponent(Style style, ShoppingPage page) {
         this.style = style;
         this.page = page;
     }

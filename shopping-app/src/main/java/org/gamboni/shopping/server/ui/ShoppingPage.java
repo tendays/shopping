@@ -15,7 +15,6 @@ import org.gamboni.tech.history.ClientStateHandler;
 import org.gamboni.tech.quarkus.QuarkusPage;
 import org.gamboni.tech.web.js.JavaScript;
 import org.gamboni.tech.web.js.JsPersistentWebSocket;
-import org.gamboni.tech.web.ui.AbstractComponent;
 import org.gamboni.tech.web.ui.FavIconResource;
 import org.gamboni.tech.web.ui.Html;
 import org.gamboni.tech.web.ui.Value;
@@ -29,8 +28,10 @@ import static org.gamboni.tech.web.js.JavaScript.*;
  */
 @ApplicationScoped
 @Path("/")
-public class ShoppingPage extends QuarkusPage {
+public class ShoppingPage extends QuarkusPage<ShoppingPage.Data> {
     public static final String ID_PREFIX = "i-";
+
+    public record Data(UiMode mode, List<Item> items) {}
 
     @Inject
     Style style;
@@ -40,14 +41,13 @@ public class ShoppingPage extends QuarkusPage {
     // TODO auto-initialise all these by their name
     public final JavaScript.Fun2 actionForState = new JavaScript.Fun2("actionForState");
 
-    public final JavaScript.Fun2 init = new JavaScript.Fun2("init");
-
     /** Set the state of an item. */
     private final JavaScript.Fun1 setState = new JavaScript.Fun1("setState");
 
     /** Function creating a div for a given item. */
     public final JavaScript.Fun2 newElement = new JavaScript.Fun2("newElement");
 
+    private final JsGlobal mode = new JsGlobal("mode");
     private final ClientStateHandler stateHandler = new ClientStateHandler() {
 
         @Override
@@ -56,39 +56,32 @@ public class ShoppingPage extends QuarkusPage {
                     mode,
                     sequence);
         }
-        @Override
-        protected JavaScript.JsStatement applyUpdate(JavaScript.JsExpression event) {
-            JsItemTransition data = new JsItemTransition(event);
-            return let(getElementForState(data),
+    }.addHandler((event, matcher) -> new JsItemTransition(event),
+            event -> let(getElementForState(event),
                     JavaScript.JsHtmlElement::new,
                     existing ->
-                            _if(data.type().eq(literal(ItemTransition.Type.HIDDEN))
+                            _if(event.type().eq(literal(ItemTransition.Type.HIDDEN))
                                             .and(existing),
                                     existing.remove())
-                                    ._elseIf(data.type().eq(literal(ItemTransition.Type.VISIBLE))
+                                    ._elseIf(event.type().eq(literal(ItemTransition.Type.VISIBLE))
                                                     .and(existing),
-                                            setState.invoke(data))
-                                    ._elseIf(data.type().eq(literal(ItemTransition.Type.VISIBLE)),
-                                            newElement.invoke(mode, data))
-            );
-        }
-    };
+                                            setState.invoke(event))
+                                    ._elseIf(event.type().eq(literal(ItemTransition.Type.VISIBLE)),
+                                            newElement.invoke(mode, event))));
 
     private final JsPersistentWebSocket socket = new JsPersistentWebSocket(stateHandler);
-
-    private final JsGlobal mode = new JsGlobal("mode");
 
     @PostConstruct
     void init() {
         socket.addTo(this);
+
+        addToOnLoad(onLoad -> mode.set(onLoad.addParameter(data -> literal(data.mode))));
+        addToOnLoad(onLoad -> stateHandler.init(onLoad.addParameter(
+                data -> literal(Items.nextSequence(data.items).orElse(0)))));
+        addToOnLoad(onLoad -> socket.poll());
+
         addToScript(
                 mode.declare(_null), // initialised by init()
-
-                init.declare((modeValue, sequenceValue) -> seq(
-                        mode.set(modeValue),
-                        stateHandler.init(sequenceValue),
-                        socket.poll())
-                ),
 
                 actionForState.declare((mode, e) -> {
                             JsHtmlElement elt = new JsHtmlElement(e);
@@ -118,7 +111,7 @@ public class ShoppingPage extends QuarkusPage {
 
                 newElement.declare((mode, item) -> {
                     var itemTransition = new JsItemTransition(item);
-                    return new ItemComponent(AbstractComponent.End.FRONT, style, this)
+                    return new ItemComponent(style, this)
                             .render(Value.of(mode),
                                     /* Actual value:
                                     {"id":"basilic","type":"CREATE","state":"TO_BUY","sequence":5007}
@@ -137,7 +130,7 @@ public class ShoppingPage extends QuarkusPage {
     public String ui(@PathParam("mode") UiMode mode) {
         // Wondering it this is right from an SRP point-of-view, to let the shopping *page*
         // (which should be concerned about ui only) access the storage component...
-        return render(mode, mode.load(store)).toString();
+        return render(new Data(mode, mode.load(store))).toString();
     }
 
     // TODO actually use getUrl() and getMime() from Resource
@@ -148,19 +141,18 @@ public class ShoppingPage extends QuarkusPage {
         return style.render();
     }
 
-    public Html render(UiMode mode, List<Item> items) {
+    public Html render(Data data) {
 
-        final ItemComponent itemComponent = new ItemComponent(end, style, this);
+        final ItemComponent itemComponent = new ItemComponent(style, this);
 
-        return html(ImmutableList.of(
+        return html(data, ImmutableList.of(
                 style,
-                getScript(),
                 new FavIconResource("favicon.png", "image/png")
-                ), Lists.transform(items, i ->
+                ), Lists.transform(data.items, i ->
                 itemComponent.render(
                         Value.of(mode),
-                        ItemTransitionValues.of(ItemTransition.forItem(mode, i)))
-                )).onLoad(init.invoke(JavaScript.literal(mode.name()), JavaScript.literal(Items.nextSequence(items).orElse(0))));
+                        ItemTransitionValues.of(ItemTransition.forItem(data.mode, i)))
+                ));
     }
 
     private static JsHtmlElement getElementForState(JsExpression state) {
