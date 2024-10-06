@@ -9,7 +9,7 @@ import org.gamboni.tech.web.js.JS;
  */
 @RegisterForReflection
 @JS
-public record ItemTransition(String id, String image, Type type, State state) implements Dto {
+public record ItemTransition(String id, String image, Type type, State state) {
 
     public enum Type {
         VISIBLE, HIDDEN;

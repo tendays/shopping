@@ -24,9 +24,8 @@ import java.util.function.BiConsumer;
 @Slf4j
 public class Store extends PersistedHistoryStore<
         UiMode, // Query type
-        StampedEventList<Item>, // Snapshot type
-        Store.UpdateSession, // Session type
-        ItemTransition // Event type
+        StampedEventList, // Snapshot type
+        Store.UpdateSession // Session type
         > {
 
     private final Map<BroadcastTarget, UiMode> sessions = new HashMap<>();
@@ -72,8 +71,8 @@ public class Store extends PersistedHistoryStore<
 
     @Override
     @Transactional
-    public synchronized StampedEventList<Item> getSnapshot(UiMode query) {
-        return new StampedEventList<>(getStamp(), getAllItems());
+    public synchronized StampedEventList getSnapshot(UiMode query) {
+        return new StampedEventList(getStamp(), getAllItems());
     }
 
     @Override
@@ -94,7 +93,7 @@ public class Store extends PersistedHistoryStore<
                 .toList();
     }
 
-    public class UpdateSession extends AbstractUpdateSession<ItemTransition> {
+    public class UpdateSession extends AbstractUpdateSession {
         UpdateSession(long stamp) {
             super(stamp);
         }

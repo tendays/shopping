@@ -6,16 +6,20 @@ import jakarta.websocket.OnMessage;
 import jakarta.websocket.Session;
 import jakarta.websocket.server.ServerEndpoint;
 import lombok.extern.slf4j.Slf4j;
-import org.gamboni.shopping.server.domain.*;
-import org.gamboni.shopping.server.http.ShoppingApi;
+import org.gamboni.shopping.server.domain.Hello;
+import org.gamboni.shopping.server.domain.ShoppingCommand;
+import org.gamboni.shopping.server.domain.Store;
+import org.gamboni.shopping.server.domain.WebSocketPayload;
 import org.gamboni.tech.quarkus.QuarkusWebSocket;
+import org.gamboni.tech.web.js.JsPersistentWebSocket;
 
 import java.io.IOException;
 
-@ServerEndpoint(ShoppingApi.SOCKET_URL)
+@ServerEndpoint(JsPersistentWebSocket.DEFAULT_URL)
 @ApplicationScoped
 @Slf4j
 public class ShoppingSocket extends QuarkusWebSocket {
+
     @Inject
     Store s;
     @OnMessage
@@ -26,13 +30,13 @@ public class ShoppingSocket extends QuarkusWebSocket {
             if (payload instanceof Hello hello) {
                 log.debug("Processing subscription since {}", hello.since());
 
-                for (ItemTransition transition : s.addListener(
+                for (Object transition : s.addListener(
                         new SessionBroadcastTarget(session), hello.mode(), hello.since())
                         .updates()) {
                     log.debug("Sending initial item {} to {}",
-                            transition.id(), session);
+                            transition, session);
                     session.getAsyncRemote().sendText(
-                            transition.toJsonString());
+                            toJsonString(transition));
                 }
             } else if (payload instanceof ShoppingCommand command) {
                 broadcast(s.update(us -> us.setItemState(command.id(), command.action()))::get);

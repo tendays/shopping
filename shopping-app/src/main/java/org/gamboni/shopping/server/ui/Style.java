@@ -18,11 +18,11 @@ public class Style extends Css {
         return rule(forState.valueStream().reduce(Selector.NOTHING, Selector::or, Selector::or),
                 a.width("300px"),
                 a.height("300px"),
-                a._float("left"),
-                a.position("relative")
+                CssFloat.LEFT,
+                Position.RELATIVE
         ) +
                 rule(text,
-                        a.position("absolute"),
+                        Position.ABSOLUTE,
                         a.width("auto"),
                         a.backgroundColor("white"),
                         a.top("0"),
@@ -37,8 +37,8 @@ public class Style extends Css {
                         a.backgroundColor("orange"),
                         a.color("white")) +
                 rule(forState.get(State.BOUGHT).before(),
-                        a.content("\"✅\""), // note: "checkmark" emoji between quotes
-                        a.position("absolute"),
+                        a.content("✅"), // note: "checkmark" emoji between quotes
+                        Position.ABSOLUTE,
                         a.right("0"),
                         a.top("0"),
                         a.fontSize("3em"));

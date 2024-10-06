@@ -28,11 +28,11 @@ dependencies {
 
     annotationProcessor 'org.projectlombok:lombok:1.18.30'
 
-    implementation 'org.gamboni:tech-web:0.0.2-SNAPSHOT'
-    annotationProcessor 'org.gamboni:tech-web:0.0.2-SNAPSHOT'
-    implementation 'org.gamboni:tech-history:0.0.2-SNAPSHOT'
-    implementation 'org.gamboni:tech-quarkus:0.0.2-SNAPSHOT'
-    implementation 'org.gamboni:tech-persistence:0.0.2-SNAPSHOT'
+    implementation 'org.gamboni:tech-web:0.0.3-SNAPSHOT'
+    annotationProcessor 'org.gamboni:tech-web:0.0.3-SNAPSHOT'
+    implementation 'org.gamboni:tech-history:0.0.3-SNAPSHOT'
+    implementation 'org.gamboni:tech-quarkus:0.0.3-SNAPSHOT'
+    implementation 'org.gamboni:tech-persistence:0.0.3-SNAPSHOT'
 
     annotationProcessor 'org.hibernate.orm:hibernate-jpamodelgen:6.0.2.Final'
 
