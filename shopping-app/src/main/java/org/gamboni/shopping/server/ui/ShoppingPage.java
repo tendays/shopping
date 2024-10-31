@@ -1,7 +1,6 @@
 package org.gamboni.shopping.server.ui;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -11,15 +10,17 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import org.gamboni.shopping.server.domain.*;
-import org.gamboni.tech.history.ClientStateHandler;
-import org.gamboni.tech.quarkus.QuarkusPage;
+import org.gamboni.tech.history.Stamped;
+import org.gamboni.tech.history.ui.ArrayElement;
+import org.gamboni.tech.quarkus.QuarkusDynamicPage;
 import org.gamboni.tech.web.js.JavaScript;
-import org.gamboni.tech.web.js.JsPersistentWebSocket;
 import org.gamboni.tech.web.ui.FavIconResource;
 import org.gamboni.tech.web.ui.Html;
-import org.gamboni.tech.web.ui.Value;
+import org.gamboni.tech.web.ui.IdentifiedElementRenderer;
+import org.gamboni.tech.web.ui.Renderer;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.gamboni.tech.web.js.JavaScript.*;
 
@@ -28,27 +29,25 @@ import static org.gamboni.tech.web.js.JavaScript.*;
  */
 @ApplicationScoped
 @Path("/")
-public class ShoppingPage extends QuarkusPage<ShoppingPage.Data> {
-    public static final String ID_PREFIX = "i-";
+public class ShoppingPage extends QuarkusDynamicPage<ShoppingPage.Data> {
+    private IdentifiedElementRenderer<NewItemEventValues> itemComponent;
+    private Renderer<Stream<NewItemEventValues>> arrayElement;
 
-    public record Data(UiMode mode, List<Item> items) {}
+    public record Data(UiMode mode, List<Item> items) implements Stamped {
+        @Override
+        public long stamp() {
+            return Items.nextSequence(items).orElse(0);
+        }
+    }
 
     @Inject
     Style style;
 
     @Inject Store store;
 
-    // TODO auto-initialise all these by their name
-    public final JavaScript.Fun2 actionForState = new JavaScript.Fun2("actionForState");
-
-    /** Set the state of an item. */
-    private final JavaScript.Fun1 setState = new JavaScript.Fun1("setState");
-
-    /** Function creating a div for a given item. */
-    public final JavaScript.Fun2 newElement = new JavaScript.Fun2("newElement");
+    public final JavaScript.Fun1 actionForState = new JavaScript.Fun1("actionForState");
 
     private final JsGlobal mode = new JsGlobal("mode");
-    private final ClientStateHandler stateHandler = new ClientStateHandler() {
 
         @Override
         protected JavaScript.JsExpression helloValue(JavaScript.JsExpression sequence) {
@@ -56,34 +55,29 @@ public class ShoppingPage extends QuarkusPage<ShoppingPage.Data> {
                     mode,
                     sequence);
         }
-    }.addHandler((event, matcher) -> new JsItemTransition(event),
-            event -> let(getElementForState(event),
-                    JavaScript.JsHtmlElement::new,
-                    existing ->
-                            _if(event.type().eq(literal(ItemTransition.Type.HIDDEN))
-                                            .and(existing),
-                                    existing.remove())
-                                    ._elseIf(event.type().eq(literal(ItemTransition.Type.VISIBLE))
-                                                    .and(existing),
-                                            setState.invoke(event))
-                                    ._elseIf(event.type().eq(literal(ItemTransition.Type.VISIBLE)),
-                                            newElement.invoke(mode, event))));
-
-    private final JsPersistentWebSocket socket = new JsPersistentWebSocket(stateHandler);
 
     @PostConstruct
     void init() {
-        socket.addTo(this);
+        this.itemComponent = ItemComponent.INSTANCE.addTo(this);
+
+        this.arrayElement = ArrayElement.withRemoval(NewItemEventValues::id, itemComponent)
+                .withNewElementHandler(
+                        // TODO this entire element matcher could be generated as part of JsNewItemEvent
+                        (event, matcher) -> {
+                            var newElement = new JsNewItemEvent(event);
+                            matcher.expect(newElement.dot("@type").eq(literal(NewItemEvent.class.getSimpleName())));
+                            return newElement;
+                        },
+                        NewItemEventValues::of,
+                        ArrayElement.AddAt.START)
+                .addTo(this);
 
         addToOnLoad(onLoad -> mode.set(onLoad.addParameter(data -> literal(data.mode))));
-        addToOnLoad(onLoad -> stateHandler.init(onLoad.addParameter(
-                data -> literal(Items.nextSequence(data.items).orElse(0)))));
-        addToOnLoad(onLoad -> socket.poll());
 
         addToScript(
-                mode.declare(_null), // initialised by init()
+                mode.declare(_null), // initialised by onLoad()
 
-                actionForState.declare((mode, e) -> {
+                actionForState.declare(e -> {
                             JsHtmlElement elt = new JsHtmlElement(e);
 
                             return _if(mode.eq(UiMode.SELECT),
@@ -98,28 +92,7 @@ public class ShoppingPage extends QuarkusPage<ShoppingPage.Data> {
                                                             doAction(elt, Action.MARK_AS_NOT_BOUGHT)
                                                     ));
                         }
-                ),
-
-                setState.declare(state -> seq(
-                        let(getElementForState(state),
-                                JsHtmlElement::new,
-                                e ->
-                                        _if(e,
-                                                e.classList().remove(e.classList().item(0)),
-                                                e.classList().add(state.dot("state").toLowerCase()) // TODO toLowerCase repeats work done by style.forState
-                                        )))),
-
-                newElement.declare((mode, item) -> {
-                    var itemTransition = new JsItemTransition(item);
-                    return new ItemComponent(style, this)
-                            .render(Value.of(mode),
-                                    /* Actual value:
-                                    {"id":"basilic","type":"CREATE","state":"TO_BUY","sequence":5007}
-                                     */
-                                    ItemTransitionValues.of(itemTransition)
-                            ).javascriptCreate(
-                                    elt -> getBodyElement().prepend(elt));
-                }));
+                ));
     }
 
 
@@ -128,12 +101,9 @@ public class ShoppingPage extends QuarkusPage<ShoppingPage.Data> {
     @Produces("text/html")
     @Transactional
     public String ui(@PathParam("mode") UiMode mode) {
-        // Wondering it this is right from an SRP point-of-view, to let the shopping *page*
-        // (which should be concerned about ui only) access the storage component...
         return render(new Data(mode, mode.load(store))).toString();
     }
 
-    // TODO actually use getUrl() and getMime() from Resource
     @GET
     @Path("style.css")
     @Produces("text/css")
@@ -142,31 +112,24 @@ public class ShoppingPage extends QuarkusPage<ShoppingPage.Data> {
     }
 
     public Html render(Data data) {
-
-        final ItemComponent itemComponent = new ItemComponent(style, this);
-
         return html(data, ImmutableList.of(
                 style,
                 new FavIconResource("favicon.png", "image/png")
-                ), Lists.transform(data.items, i ->
-                itemComponent.render(
-                        Value.of(mode),
-                        ItemTransitionValues.of(ItemTransition.forItem(data.mode, i)))
-                ));
-    }
-
-    private static JsHtmlElement getElementForState(JsExpression state) {
-        return getElementById(literal(ShoppingPage.ID_PREFIX).plus(state.dot("id")));
+        ), arrayElement.render(data.items
+                .stream()
+                .map(NewItemEvent::forItem)
+                .map(NewItemEventValues::of)));
     }
 
     private JsStatement doAction(JsHtmlElement elt, Action action) {
         State targetState = action.to;
-        return seq(socket.submit(
+        return seq(submitMessage(
                         JsShoppingCommand.literal(
-                                elt.id().substring(ShoppingPage.ID_PREFIX.length()),
+                                itemComponent.getIdFromElement(elt),
                                 literal(action.name()))),
-                setState.invoke(obj(
-                        "id", elt.id().substring(ShoppingPage.ID_PREFIX.length()),
-                        "state", literal(style.forState.get(targetState)))));
+
+                elt.classList().remove(elt.classList().item(0)),
+                elt.classList().add(literal(style.forState.get(targetState)))
+        );
     }
 }

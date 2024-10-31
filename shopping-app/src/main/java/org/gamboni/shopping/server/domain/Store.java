@@ -7,15 +7,17 @@ import jakarta.persistence.criteria.Root;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.gamboni.shopping.server.ui.UiMode;
-import org.gamboni.tech.history.StampedEventList;
+import org.gamboni.tech.history.event.ElementRemovedEvent;
+import org.gamboni.tech.history.event.Event;
+import org.gamboni.tech.history.event.NewStateEvent;
+import org.gamboni.tech.history.event.StampedEventList;
 import org.gamboni.tech.persistence.PersistedHistoryStore;
 import org.gamboni.tech.web.ws.BroadcastTarget;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.stream.Stream;
 
 /**
  * @author tendays
@@ -27,8 +29,6 @@ public class Store extends PersistedHistoryStore<
         StampedEventList, // Snapshot type
         Store.UpdateSession // Session type
         > {
-
-    private final Map<BroadcastTarget, UiMode> sessions = new HashMap<>();
 
     @Override
     protected long getStamp() {
@@ -72,7 +72,10 @@ public class Store extends PersistedHistoryStore<
     @Override
     @Transactional
     public synchronized StampedEventList getSnapshot(UiMode query) {
-        return new StampedEventList(getStamp(), getAllItems());
+        return new StampedEventList(getStamp(), getAllItems()
+                .stream()
+                .map(NewItemEvent::forItem)
+                .toList());
     }
 
     @Override
@@ -81,15 +84,22 @@ public class Store extends PersistedHistoryStore<
     }
 
     @Override
-    protected List<ItemTransition> internalAddListener(BroadcastTarget client, UiMode mode, long since) {
-        log.debug("Adding {} to broadcast list", client);
-        sessions.put(client, mode);
-
+    protected List<? extends Event> internalAddListener(BroadcastTarget client, UiMode mode, long since) {
         var cb = em.getCriteriaBuilder();
         return search(Item.class, (query, root) ->
                 query.where(cb.gt(root.get(Item_.sequence), since)))
                 .getResultStream()
-                .map(i -> ItemTransition.forItem(mode, i))
+                .flatMap(i -> {
+                    if (!mode.test(i.getState())) {
+                        return Stream.of(new ElementRemovedEvent("", i.getText()));
+                    } else {
+                        // We can't know if this element was there before, so we can't know whether to use new-state event or new-element event.
+                        // In doubt, we emit both, and one of them will be ignored by the client.
+                        return Stream.of(
+                                NewItemEvent.forItem(i),
+                                new NewStateEvent<>("", i.getText(), i.getState()));
+                    }
+                })
                 .toList();
     }
 
@@ -98,19 +108,35 @@ public class Store extends PersistedHistoryStore<
             super(stamp);
         }
 
-        public State setItemState(String itemName, Action action) {
+        public void setItemState(String itemName, Action action) {
             final Item item = getItemByName(itemName);
             if (action.from.contains(item.getState())) {
                 setItemState(item, action.to);
             }
-            return item.getState();
         }
 
         public void setItemState(Item item, State newState) {
+            State oldState = item.getState();
             item.setState(newState);
             item.setSequence(stamp);
-            sessions.forEach((target, mode) -> notifications.put(target,
-                    ItemTransition.forItem(mode, item)));
+
+            notifyListeners(notifications, mode -> {
+                boolean visibleBefore = mode.test(oldState);
+                boolean visibleAfter = mode.test(newState);
+                if (visibleBefore) {
+                    if (visibleAfter) {
+                        return Optional.of(new NewStateEvent<>("", item.getText(), newState));
+                    } else { // visibleBefore && !visibleAfter
+                        return Optional.of(new ElementRemovedEvent("", item.getText()));
+                    }
+                } else { // !visibleBefore
+                    if (visibleAfter) {
+                        return Optional.of(NewItemEvent.forItem(item));
+                    } else { // !visibleBefore && !visibleAfter
+                        return Optional.empty();
+                    }
+                }
+            });
         }
     }
 }

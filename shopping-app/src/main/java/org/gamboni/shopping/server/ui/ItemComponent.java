@@ -1,32 +1,28 @@
 package org.gamboni.shopping.server.ui;
 
-import org.gamboni.shopping.server.domain.ItemTransitionValues;
+import org.gamboni.shopping.server.domain.NewItemEventValues;
+import org.gamboni.shopping.server.domain.State;
+import org.gamboni.tech.history.ui.EnumViewElementTemplate;
 import org.gamboni.tech.web.ui.AbstractComponent;
-import org.gamboni.tech.web.ui.Element;
 import org.gamboni.tech.web.ui.Html;
+import org.gamboni.tech.web.ui.IdentifiedElementRenderer;
 import org.gamboni.tech.web.ui.Value;
 
 import java.util.List;
 
-import static org.gamboni.shopping.server.ui.ShoppingPage.ID_PREFIX;
-
 public class ItemComponent extends AbstractComponent {
-    private final Style style;
-    private final ShoppingPage page;
+    public static final ItemComponent INSTANCE = new ItemComponent();
 
-    public ItemComponent(Style style, ShoppingPage page) {
-        this.style = style;
-        this.page = page;
-    }
-
-    public Element render(Value<UiMode> mode, ItemTransitionValues item) {
-        return div(List.of(style.forState.get(item.state()),
-                        Html.eventHandler("onclick", self -> page.actionForState.invoke(
-                                mode.toExpression(), self)),
-                        Html.attribute("id", Value.concat(Value.of(ID_PREFIX), item.id()))),
-                img(style.image, Value.concat(Value.of("/i/"), item.image())),
-                div(List.of(style.text), Html.escape(item.id())
-                )
-        );
+    public IdentifiedElementRenderer<NewItemEventValues> addTo(ShoppingPage page) {
+        return EnumViewElementTemplate.ofDynamicBase(State.class,
+                NewItemEventValues::id,
+                NewItemEventValues::state,
+                event -> div(List.of(Html.eventHandler("onclick", page.actionForState::invoke)),
+                        img(page.style.image, Value.concat(Value.of("/i/"), event.image())),
+                        div(List.of(page.style.text), Html.escape(event.id())
+                        )))
+                .withElementKey("i")
+                .withStyle(page.style.forState)
+                .addTo(page);
     }
 }

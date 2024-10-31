@@ -9,7 +9,7 @@ import org.gamboni.tech.web.ui.Css;
  */
 @ApplicationScoped
 public class Style extends Css {
-    public EnumToClassName<State> forState = new EnumToClassName<>(State.class);
+    public OneCssClassPerEnumValue<State> forState = new OneCssClassPerEnumValue<>(State.class);
     public ClassName text = new ClassName("text");
     public ClassName image = new ClassName("image");
 
